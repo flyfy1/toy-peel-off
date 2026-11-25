@@ -14,6 +14,8 @@ export interface GameEvents {
   onCount: (n: number, mum: boolean) => void
   /** A deadpan line under the object, or a chat bubble from Mum. */
   onLine: (text: string, mode: 'line' | 'mum') => void
+  /** A film came fully off: numbers for the share card (today, one-pulls this visit, the remote peeled). */
+  onPeel?: (n: number, data: Record<string, number>) => void
 }
 
 export interface GameApi {
@@ -170,6 +172,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   // session
   let sessionN = 0
   let onePulls = 0
+  let remoteDone = 0
   let phones = 0
   let secondShown = 0
   let today = (() => {
@@ -441,6 +444,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     lsSet('peel.total', String(lifetime))
     ga('peel_done', { n: sessionN, item: it, ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000), one_pull: relaidN === 0 ? 1 : 0, relaid: relaidN })
     ev.onCount(today, L.kind === 'remote')
+    if (L.kind === 'remote') remoteDone = 1
+    ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone })
     if (L.kind === 'remote') {
       ev.onLine(t('peel_mum_done'), 'mum')
       ga('mum', { stage: 'done' })

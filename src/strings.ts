@@ -2,6 +2,7 @@
 // The text every toy shares (names for the More menu, Share, About) lives in i18n.ts.
 
 const en = {
+  peel_tag: "Someone saved you the film on the remote",
   desc_peel: "A new phone in its box, factory film still on. Take the corner tab and pull: the film curls away with a fine crackle and the screen comes out clean. Then a steel panel, then the TV remote your mum said to leave alone. A tiny satisfying toy, no sign-up.",
   hint_peel: "Pull the corner tab",
   share_peel: "Peel the factory film off a brand-new phone:",
@@ -22,6 +23,7 @@ const en = {
 }
 
 const zhCN: typeof en = {
+  peel_tag: "有人把遥控器的膜留给你撕",
   desc_peel: "盒子里一台新手机，出厂膜还贴着。捏住角上的小标签往外撕：膜卷起来，细细地沙沙响，底下的屏幕干干净净。接着是一块不锈钢面板，然后是妈妈不让撕的电视遥控器。打开即玩的解压小玩具。",
   hint_peel: "捏住角上的小标签，撕",
   share_peel: "给一台新手机撕膜：",
@@ -42,6 +44,7 @@ const zhCN: typeof en = {
 }
 
 const es: typeof en = {
+  peel_tag: "Alguien te ha guardado la lámina del mando",
   desc_peel: "Un móvil nuevo en su caja, con el plástico de fábrica todavía puesto. Coge la pestaña de la esquina y tira: el plástico se enrolla con un crujido fino y la pantalla sale limpia. Luego un panel de acero y luego el mando de la tele que tu madre dijo que no tocaras. Un juguete pequeño y satisfactorio, sin registro.",
   hint_peel: "Tira de la pestaña de la esquina",
   share_peel: "Quítale el plástico a un móvil recién estrenado:",
@@ -62,6 +65,7 @@ const es: typeof en = {
 }
 
 const fr: typeof en = {
+  peel_tag: "Quelqu’un vous a gardé le film de la télécommande",
   desc_peel: "Un téléphone neuf dans sa boîte, le film d'usine encore dessus. Prenez la languette du coin et tirez : le film s'enroule avec un fin crépitement et l'écran apparaît, net. Puis un panneau inox, puis la télécommande que votre mère vous a dit de laisser emballée. Un petit jouet satisfaisant, sans inscription.",
   hint_peel: "Tirez la languette du coin",
   share_peel: "Retirez le film d'un téléphone tout neuf :",
@@ -82,6 +86,7 @@ const fr: typeof en = {
 }
 
 const ja: typeof en = {
+  peel_tag: "リモコンのフィルムをあなたに残してくれた人がいます",
   desc_peel: "箱の中に新品のスマホ。出荷時のフィルムが貼ったまま。角のタブをつまんで引くと、フィルムがくるりと丸まり、細かいパリパリ音とともにはがれて、まっさらな画面が出てくる。次はステンレスのパネル、その次は母が「はがすな」と言ったテレビのリモコン。登録不要の小さな気持ちいいおもちゃ。",
   hint_peel: "角のタブをつまんで、はがす",
   share_peel: "新品スマホの保護フィルムをはがそう：",

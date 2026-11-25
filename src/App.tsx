@@ -3,7 +3,8 @@ import { MoreMenu, pillClass } from './components/MoreMenu'
 import { applyMeta, t } from './i18n'
 import { startAnalytics, track } from './analytics'
 import { Hint } from './components/Hint'
-import { stats, trackLanding } from './share'
+import { landing, peakEvery, stats, trackLanding } from './share'
+import { Tag } from './components/Tag'
 import { startGame } from './game'
 
 type Line = { text: string; mode: 'line' | 'mum'; id: number }
@@ -27,6 +28,9 @@ export default function App() {
       onFirst() {
         setTouched(true)
         track('play_start')
+      },
+      onPeel(n, data) {
+        peakEvery('peel', n, { snap: null, data })
       },
       onCount(n, isMum) {
         stats.n = n
@@ -74,6 +78,7 @@ export default function App() {
         </div>
       )}
       {!bare && <Hint text={t('hint_peel')} hidden={touched} toy="peel" />}
+      {landing.recipient && q.get('obj') === 'remote' && <Tag text={t('peel_tag')} className="top-14" paper="bg-white text-[#26302A] font-medium" />}
       {!bare && <MoreMenu current="peel" />}
     </>
   )
