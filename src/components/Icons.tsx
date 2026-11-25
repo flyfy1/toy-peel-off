@@ -89,6 +89,14 @@ export const IconSquish = () => (
   </svg>
 )
 
+/** scratch: a card with a zigzag scratched through its panel. */
+export const IconScratch = () => (
+  <svg {...S}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M7.5 9.5 10 13l2.2-3.5 2.3 3.5 2-3.5" />
+  </svg>
+)
+
 /** peel: a rounded rectangle with its corner folded back. */
 export const IconPeel = () => (
   <svg {...S}>
@@ -106,6 +114,7 @@ export const TOY_ICONS: Record<ToyId, () => JSX.Element> = {
   knock: IconKnock,
   purr: IconPurr,
   squish: IconSquish,
+  scratch: IconScratch,
   peel: IconPeel,
 }
 

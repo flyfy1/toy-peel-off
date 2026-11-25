@@ -3,7 +3,7 @@ import { openAbout, t, type ToyId } from '../i18n'
 import { ShareButton } from './ShareButton'
 import { IconClose, IconGrid, IconInfo, TOY_ICONS } from './Icons'
 
-const SITES: ToyId[] = ['charge', 'void', 'smash', 'pop', 'knock', 'purr', 'squish' /* , 'peel' (add at launch) */]
+const SITES: ToyId[] = ['charge', 'void', 'smash', 'pop', 'knock', 'purr', 'squish', 'scratch', 'peel']
 
 /** Light toys (pale backgrounds) get dark-ink pills. */
 export const LIGHT_TOYS: ToyId[] = ['purr', 'pop', 'squish', 'peel']
