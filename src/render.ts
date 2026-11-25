@@ -228,11 +228,16 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
       const rnd = rng(st.frontSeed)
       if (L.kind === 'steel') {
         // adhesive bloom on the metal just uncovered
-        const a0 = P(A, u, m - r - 0.045 * L.F, 0)
+        // a milky, faintly iridescent haze with a darker wet line where the glue just let go
+        const b = st.bloom
+        const a0 = P(A, u, m - r - 0.11 * L.F, 0)
         const a1 = P(A, u, m - r, 0)
         const g = ctx.createLinearGradient(a0[0], a0[1], a1[0], a1[1])
         g.addColorStop(0, 'rgba(255,255,255,0)')
-        g.addColorStop(1, `rgba(255,255,255,${0.26 * st.bloom})`)
+        g.addColorStop(0.45, `rgba(200,225,255,${(0.18 * b).toFixed(3)})`)
+        g.addColorStop(0.75, `rgba(255,236,246,${(0.38 * b).toFixed(3)})`)
+        g.addColorStop(0.93, `rgba(255,255,255,${(0.6 * b).toFixed(3)})`)
+        g.addColorStop(1, `rgba(90,96,110,${(0.35 * b).toFixed(3)})`)
         ctx.fillStyle = g
         ctx.beginPath()
         halfPlane(ctx, A, u, m - r, true)
