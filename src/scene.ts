@@ -498,7 +498,7 @@ export function drawPhoneLive(ctx: CanvasRenderingContext2D, L: Layout, date: Da
   ctx.font = `400 ${dfs}px system-ui, sans-serif`
   ctx.fillStyle = 'rgba(255,255,255,0.72)'
   const ds = new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric' }).format(date)
-  ctx.fillText(ds, 0, S.y + 0.22 * S.h - 0.48 * fs)
+  ctx.fillText(ds, 0, base + 0.16 * fs + dfs)
   ctx.restore()
 }
 
@@ -1080,7 +1080,7 @@ function printSteel(ctx: CanvasRenderingContext2D, L: Layout) {
   ctx.save()
   ctx.translate(fw / 2, fh / 2)
   ctx.rotate(-Math.PI / 6)
-  const txt = t('peel_steel_print')
+  const txt = t('peel_remove')
   const fs = 0.04 * F
   ctx.font = `700 ${fs}px system-ui, sans-serif`
   ctx.textAlign = 'left'

@@ -41,8 +41,6 @@ export interface Riser {
 class AudioEngine {
   ctx: AudioContext | null = null
   private master: GainNode | null = null
-  /** Bypasses the compressor: its 180 ms release would pump up a wood tail and turn "tok" into "tooong". */
-  private dry: GainNode | null = null
   private noiseBuf: AudioBuffer | null = null
   private recent: number[] = []
 
@@ -61,10 +59,6 @@ class AudioEngine {
       const master = ctx.createGain()
       master.gain.value = 0.8
       master.connect(comp).connect(ctx.destination)
-      const dry = ctx.createGain()
-      dry.gain.value = 0.62
-      dry.connect(ctx.destination)
-      this.dry = dry
       const len = ctx.sampleRate * 2
       const buf = ctx.createBuffer(1, len, ctx.sampleRate)
       const d = buf.getChannelData(0)
@@ -201,74 +195,6 @@ class AudioEngine {
       const d = Math.pow(Math.random(), 1.6) * 1.4
       this.tone({ freq: 2500 + Math.random() * 5500, type: 'sine', dur: 0.08 + Math.random() * 0.25, gain: 0.05 + Math.random() * 0.07, delay: d, pan: Math.random() * 2 - 1 })
     }
-  }
-
-  /** Wooden fish (木鱼) "tok", modal synthesis: three inharmonic sine modes with
-   *  exponential decay (time constants 90 / 50 / 30 ms), a 6 ms band-passed strike click
-   *  and a short body thump. f is randomised ±1.5% per hit so repeats don't machine-gun.
-   *  v in [0,1] is strike velocity: louder and brighter when harder. Not voice-budgeted. */
-  woodKnock(v = 0.8, f0 = 520, delay = 0): void {
-    if (!this.ok) return
-    const ctx = this.ctx!
-    const t0 = ctx.currentTime + delay
-    const vel = Math.max(0.15, Math.min(1, v))
-    const f = f0 * (1 + (Math.random() * 2 - 1) * 0.015)
-    const out = ctx.createGain()
-    out.gain.value = 0.55 + 0.45 * vel
-    out.connect(this.dry ?? this.master!)
-    const modes: [number, number, number][] = [
-      [1, 0.09, 0.5],
-      [2.35, 0.05, 0.2 * (0.6 + 0.4 * vel)],
-      [3.9, 0.03, 0.08 * (0.4 + 0.6 * vel)],
-    ]
-    for (const [m, tau, gain] of modes) {
-      const osc = ctx.createOscillator()
-      osc.type = 'sine'
-      // a hint of downward glide at the strike, as wood stiffens back
-      osc.frequency.setValueAtTime(f * m * 1.012, t0)
-      osc.frequency.exponentialRampToValueAtTime(f * m, t0 + 0.025)
-      const g = ctx.createGain()
-      g.gain.setValueAtTime(0, t0)
-      g.gain.linearRampToValueAtTime(gain, t0 + 0.0015)
-      g.gain.setTargetAtTime(0, t0 + 0.0015, tau)
-      osc.connect(g).connect(out)
-      osc.start(t0)
-      osc.stop(t0 + tau * 9 + 0.01)
-    }
-    // strike click: 6 ms of noise through a 1.8 kHz band-pass
-    const src = ctx.createBufferSource()
-    src.buffer = this.noiseBuf
-    const bp = ctx.createBiquadFilter()
-    bp.type = 'bandpass'
-    bp.frequency.value = 1800 * (0.85 + 0.3 * vel)
-    bp.Q.value = 1.1
-    const ng = ctx.createGain()
-    ng.gain.setValueAtTime(0, t0)
-    ng.gain.linearRampToValueAtTime(0.25 * (0.5 + 0.5 * vel), t0 + 0.0008)
-    ng.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.006)
-    src.connect(bp).connect(ng).connect(out)
-    src.start(t0, Math.random() * 1.5)
-    src.stop(t0 + 0.01)
-    // hollow body thump, 180 Hz for ~40 ms
-    const th = ctx.createOscillator()
-    th.type = 'sine'
-    th.frequency.setValueAtTime(180 * (f0 / 520) ** 0.5, t0)
-    th.frequency.exponentialRampToValueAtTime(140 * (f0 / 520) ** 0.5, t0 + 0.04)
-    const tg = ctx.createGain()
-    tg.gain.setValueAtTime(0, t0)
-    tg.gain.linearRampToValueAtTime(0.2, t0 + 0.002)
-    tg.gain.setTargetAtTime(0, t0 + 0.002, 0.012)
-    th.connect(tg).connect(out)
-    th.start(t0)
-    th.stop(t0 + 0.08)
-  }
-
-  /** Soft two-note wooden chime for milestones (not arcade). */
-  bell(f = 784, gain = 0.12): void {
-    if (!this.ok) return
-    this.tone({ freq: f, type: 'sine', dur: 1.6, gain, attack: 0.004 })
-    this.tone({ freq: f * 2.76, type: 'sine', dur: 0.6, gain: gain * 0.25, attack: 0.004 })
-    this.tone({ freq: f * 1.5, type: 'sine', dur: 1.8, gain: gain * 0.7, attack: 0.004, delay: 0.16 })
   }
 
   whoosh(gain = 0.35): void {

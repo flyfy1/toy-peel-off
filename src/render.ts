@@ -228,14 +228,14 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
       const rnd = rng(st.frontSeed)
       if (L.kind === 'steel') {
         // adhesive bloom on the metal just uncovered
-        const a0 = P(A, u, m - 0.02 * L.F, 0)
-        const a1 = P(A, u, m, 0)
+        const a0 = P(A, u, m - r - 0.02 * L.F, 0)
+        const a1 = P(A, u, m - r, 0)
         const g = ctx.createLinearGradient(a0[0], a0[1], a1[0], a1[1])
         g.addColorStop(0, 'rgba(255,255,255,0)')
         g.addColorStop(1, `rgba(255,255,255,${0.1 * st.bloom})`)
         ctx.fillStyle = g
         ctx.beginPath()
-        halfPlane(ctx, A, u, m, true)
+        halfPlane(ctx, A, u, m - r, true)
         ctx.fill()
       }
       // fine bright line, displaced +/- 1 px by noise
@@ -281,7 +281,7 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
     setFilm(sc, sScale)
     sc.fillStyle = 'rgb(15,18,25)'
     const dirS = toFilmVec(L, 0.5, 0.6)
-    const off = (h: number, X: number) => Math.min(h, 2 * r) + 0.4 * Math.max(0, X - m)
+    const off = (h: number, X: number) => Math.min(h, 2 * r) + 0.4 * Math.min(Math.max(0, X - m), 0.3 * L.F)
     const fillShadow = (pts: { p: V; o: number }[], k: number, a: number) => {
       sc.globalAlpha = a
       sc.beginPath()
