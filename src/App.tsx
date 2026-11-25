@@ -3,7 +3,7 @@ import { MoreMenu, pillClass } from './components/MoreMenu'
 import { applyMeta, t } from './i18n'
 import { startAnalytics, track } from './analytics'
 import { Hint } from './components/Hint'
-import { stats } from './share'
+import { stats, trackLanding } from './share'
 import { startGame } from './game'
 
 type Line = { text: string; mode: 'line' | 'mum'; id: number }
@@ -22,6 +22,7 @@ export default function App() {
   useEffect(() => {
     applyMeta('peel')
     startAnalytics('peel')
+    trackLanding()
     const g = startGame(ref.current!, {
       onFirst() {
         setTouched(true)

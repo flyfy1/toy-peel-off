@@ -1,6 +1,6 @@
 // Objects, layout and the per-object bakes (spec 3.1, 3.3, 3.4): tray, clean surface, film textures.
 import { type Poly, type V, rrPoly } from './geom'
-import { locale, peelSteelLabels, t } from './i18n'
+import { list, locale, t } from './i18n'
 
 export type Kind = 'phone' | 'steel' | 'remote'
 
@@ -591,7 +591,7 @@ function bakeSteel(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) 
   ctx.fill()
   ctx.restore()
   // Buttons: 2 x 3 printed rings with icons and labels.
-  const labels = peelSteelLabels()
+  const labels = list('peel_steel_labels')
   const bd = 0.09 * SW
   const gx = 0.26 * SW
   const y0 = -SH / 2 + 0.42 * SH
