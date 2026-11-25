@@ -26,6 +26,8 @@ export interface Bubble {
 
 export interface Layout {
   kind: Kind
+  /** The second, completely clear film under the printed one (phone only). Its tab is top left. */
+  layer2: boolean
   w: number
   h: number
   dpr: number
@@ -58,7 +60,7 @@ export interface Layout {
   pad: number
 }
 
-export function layoutFor(kind: Kind, w: number, h: number, dpr: number): Layout {
+export function layoutFor(kind: Kind, w: number, h: number, dpr: number, layer2 = false): Layout {
   let ow: number, oh: number, orad: number, fw: number, fh: number, frad: number
   let rot = 0
   if (kind === 'phone') {
@@ -94,7 +96,11 @@ export function layoutFor(kind: Kind, w: number, h: number, dpr: number): Layout
   const T = 0.11 * F
   // Tab corner: phone bottom right, steel top right, remote bottom left.
   let A: V, e1: V, e2: V
-  if (kind === 'phone') {
+  if (kind === 'phone' && layer2) {
+    A = [0, 0]
+    e1 = [0, 1]
+    e2 = [1, 0]
+  } else if (kind === 'phone') {
     A = [fw, fh]
     e1 = [0, -1]
     e2 = [-1, 0]
@@ -120,6 +126,7 @@ export function layoutFor(kind: Kind, w: number, h: number, dpr: number): Layout
   }
   return {
     kind,
+    layer2,
     w,
     h,
     dpr,
@@ -823,18 +830,18 @@ function filmBase(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number, b
   rrPath(ctx, 0, 0, fw, fh, frad)
   ctx.clip()
   // Tint.
-  ctx.fillStyle = kind === 'steel' ? 'rgba(58,141,222,0.30)' : kind === 'remote' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.10)'
+  ctx.fillStyle = L.layer2 ? 'rgba(255,255,255,0.05)' : kind === 'steel' ? 'rgba(58,141,222,0.30)' : kind === 'remote' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.10)'
   ctx.fillRect(0, 0, fw, fh)
   // Haze.
-  drawNoise(ctx, 0, 0, fw, fh, 90, rnd, '255,255,255', 0.06)
-  drawNoise(ctx, 0, 0, fw, fh, 26, rnd, '255,255,255', 0.025)
+  drawNoise(ctx, 0, 0, fw, fh, 90, rnd, '255,255,255', L.layer2 ? 0.03 : 0.06)
+  if (!L.layer2) drawNoise(ctx, 0, 0, fw, fh, 26, rnd, '255,255,255', 0.025)
   if (kind === 'remote') {
     ctx.fillStyle = 'rgba(217,194,122,0.10)'
     ctx.fillRect(0, 0, fw, fh)
     drawNoise(ctx, 0, 0, fw, fh, 50, rnd, '200,170,90', 0.08)
   }
   // Glare (front only: on the lifted flap the reflections are its own).
-  if (!back) {
+  if (!back && !L.layer2) {
     const band = (c: number, wdt: number, a: number) => {
       const dx = 0.55
       const dy = 0.83
@@ -879,7 +886,7 @@ function filmBase(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number, b
     }
   }
   // Micro-scratches.
-  const ns = kind === 'phone' ? 30 : kind === 'steel' ? 20 : 60
+  const ns = L.layer2 ? 8 : kind === 'phone' ? 30 : kind === 'steel' ? 20 : 60
   ctx.lineCap = 'round'
   for (let i = 0; i < ns; i++) {
     const x = rnd() * fw
@@ -923,7 +930,7 @@ function filmBase(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number, b
   }
   // Print.
   ctx.globalAlpha = back ? 0.6 : 1
-  if (kind === 'phone') printPhone(ctx, L)
+  if (kind === 'phone' && !L.layer2) printPhone(ctx, L)
   else if (kind === 'steel') printSteel(ctx, L)
   ctx.globalAlpha = 1
   ctx.restore()
@@ -1121,6 +1128,11 @@ export interface Bakes {
 
 export function bake(L: Layout, seed: number): Bakes {
   const rnd = rng(seed * 7919 + (L.kind === 'phone' ? 11 : L.kind === 'steel' ? 23 : 37))
+  const base = bakeBase(L, rnd)
+  return { base, ...bakeFilm(L, seed, rnd) }
+}
+
+function bakeBase(L: Layout, rnd: () => number): HTMLCanvasElement {
   const { w, h, dpr } = L
   const base = canvas(w * dpr, h * dpr)
   const bx = base.getContext('2d')!
@@ -1132,7 +1144,12 @@ export function bake(L: Layout, seed: number): Bakes {
   if (L.kind === 'phone') bakePhone(bx, L, rnd)
   else if (L.kind === 'steel') bakeSteel(bx, L, rnd)
   else bakeRemote(bx, L)
+  return base
+}
 
+/** Film textures and factory bubbles only (the second layer reuses the object's base). */
+export function bakeFilm(L: Layout, seed: number, rnd = rng(seed * 104729 + 7)): { film: FilmTex; bubbles: Bubble[] } {
+  const dpr = L.dpr
   const pad = L.pad
   const mk = (back: boolean) => {
     const c = canvas((L.fw + 2 * pad) * dpr, (L.fh + 2 * pad) * dpr)
@@ -1143,6 +1160,7 @@ export function bake(L: Layout, seed: number): Bakes {
     return c
   }
   const film = { front: mk(false), back: mk(true), pad }
+  if (L.layer2) return { film, bubbles: [] }
 
   // Factory bubbles: 5 to 9, stratified along the pull so a few always sit in the far part.
   const bubbles: Bubble[] = []
@@ -1167,7 +1185,7 @@ export function bake(L: Layout, seed: number): Bakes {
       big: false,
     })
   }
-  return { base, film, bubbles }
+  return { film, bubbles }
 }
 
 const clampN = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))

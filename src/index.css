@@ -52,3 +52,11 @@ body.about-open #about {
   width: 2.5rem; height: 2.5rem; border-radius: 9999px;
   background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; cursor: pointer;
 }
+
+/* peel: counter bump, Mum's chat bubble, deadpan line */
+@keyframes peel-bump { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
+.peel-bump { animation: peel-bump 180ms ease-out; }
+@keyframes peel-in { 0% { opacity: 0; transform: translateY(-8px); } 12% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; } 100% { opacity: 0; } }
+.peel-mum { animation: peel-in 3400ms ease-out forwards; }
+@keyframes peel-fade { 0% { opacity: 0; transform: translateY(4px); } 12% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.peel-line { animation: peel-fade 2600ms ease-out forwards; }

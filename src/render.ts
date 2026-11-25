@@ -228,11 +228,11 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
       const rnd = rng(st.frontSeed)
       if (L.kind === 'steel') {
         // adhesive bloom on the metal just uncovered
-        const a0 = P(A, u, m - r - 0.02 * L.F, 0)
+        const a0 = P(A, u, m - r - 0.045 * L.F, 0)
         const a1 = P(A, u, m - r, 0)
         const g = ctx.createLinearGradient(a0[0], a0[1], a1[0], a1[1])
         g.addColorStop(0, 'rgba(255,255,255,0)')
-        g.addColorStop(1, `rgba(255,255,255,${0.1 * st.bloom})`)
+        g.addColorStop(1, `rgba(255,255,255,${0.26 * st.bloom})`)
         ctx.fillStyle = g
         ctx.beginPath()
         halfPlane(ctx, A, u, m - r, true)
@@ -425,6 +425,22 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
     ge.addColorStop(1, 'rgba(255,255,255,0.10)')
     ctx.fillStyle = ge
     ctx.fill()
+    {
+      // the band lies across the screen's upper-left to lower-right diagonal through a fixed point
+      const sd = toFilmVec(L, 0.6, -0.8)
+      const sp: V = [L.fw * 0.45, L.fh * 0.42]
+      const wdt = 0.42 * L.F
+      const s0: V = [sp[0] - sd[0] * wdt, sp[1] - sd[1] * wdt]
+      const s1: V = [sp[0] + sd[0] * wdt, sp[1] + sd[1] * wdt]
+      const sg = ctx.createLinearGradient(s0[0], s0[1], s1[0], s1[1])
+      sg.addColorStop(0, 'rgba(255,255,255,0)')
+      sg.addColorStop(0.42, 'rgba(255,255,255,0.13)')
+      sg.addColorStop(0.5, 'rgba(255,255,255,0.2)')
+      sg.addColorStop(0.58, 'rgba(255,255,255,0.13)')
+      sg.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = sg
+      ctx.fill()
+    }
     const rq = ctx.createRadialGradient(flap.Q[0], flap.Q[1], 0, flap.Q[0], flap.Q[1], 1.2 * L.T)
     rq.addColorStop(0, 'rgba(255,255,255,0.12)')
     rq.addColorStop(1, 'rgba(255,255,255,0)')
@@ -459,7 +475,20 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
   }
 
   // ---------- tab ----------
-  if (tabMapped && tab) drawTab(ctx, L, tabMapped.map((q) => q.p), tabMapped.some((q) => q.s > Math.PI * r))
+  if (tabMapped && tab) {
+    let pts = tabMapped.map((q) => q.p)
+    if (lift > 0) {
+      let cx = 0
+      let cy = 0
+      for (const p of pts) {
+        cx += p[0] / pts.length
+        cy += p[1] / pts.length
+      }
+      const k = 1 + 0.07 * lift
+      pts = pts.map((p) => [cx + (p[0] - cx) * k - lift * 0.4, cy + (p[1] - cy) * k - lift * 0.5] as V)
+    }
+    drawTab(ctx, L, pts, tabMapped.some((q) => q.s > Math.PI * r))
+  }
 }
 
 function drawBubble(ctx: CanvasRenderingContext2D, L: Layout, b: Bubble) {
@@ -509,7 +538,10 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   cx /= pts.length
   cy /= pts.length
   const g = ctx.createLinearGradient(cx - L.T * 0.5, cy - L.T * 0.5, cx + L.T * 0.5, cy + L.T * 0.5)
-  if (steel) {
+  if (L.layer2) {
+    g.addColorStop(0, 'rgba(255,255,255,0.55)')
+    g.addColorStop(1, 'rgba(225,235,245,0.4)')
+  } else if (steel) {
     g.addColorStop(0, '#FFFFFF')
     g.addColorStop(1, '#E4E9EF')
   } else {
@@ -526,14 +558,14 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   ctx.translate(0.6, 0.6)
   ctx.stroke()
   ctx.restore()
-  ctx.strokeStyle = steel ? 'rgba(60,80,110,0.35)' : 'rgba(150,100,0,0.55)'
+  ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.7)' : steel ? 'rgba(60,80,110,0.35)' : 'rgba(150,100,0,0.55)'
   ctx.lineWidth = 0.7
   ctx.stroke()
   // printed arrow pointing along the pull (into the film)
   const out = L.out
   const ax = cx + out[0] * 0.12 * L.T
   const ay = cy + out[1] * 0.12 * L.T
-  ctx.strokeStyle = steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
+  ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.8)' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
   ctx.lineWidth = Math.max(1, 0.07 * L.T)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
@@ -550,107 +582,106 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   ctx.restore()
 }
 
-/** Crumpled film wad (spec 3.7): an irregular 9-gon in the film tint, broken into facets, with creases. css px, screen space. */
-export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: number, size: number, rot: number, seed: number) {
+/** Crumpled clear film (spec 3.7): a soft irregular wad, translucent, with soft folds and a few highlights. css px, screen space. */
+export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: number, size: number, rot: number, seed: number, alpha = 1) {
   const rnd = rng(seed)
   const n = 9
   const pts: V[] = []
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + (rnd() - 0.5) * 0.45
-    const rr = size * 0.5 * (0.7 + rnd() * 0.38)
+    const rr = size * 0.5 * (0.74 + rnd() * 0.32)
     pts.push([Math.cos(a) * rr, Math.sin(a) * rr])
   }
-  // a few inner crease vertices
-  const inner: V[] = [
-    [(rnd() - 0.5) * size * 0.2, (rnd() - 0.5) * size * 0.2],
-    [(rnd() - 0.5) * size * 0.45, (rnd() - 0.5) * size * 0.45],
-    [(rnd() - 0.5) * size * 0.45, (rnd() - 0.5) * size * 0.45],
-  ]
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(rot)
-  const steel = L.kind === 'steel'
-  const tint = steel ? '58,141,222' : L.kind === 'remote' ? '245,238,210' : '240,244,252'
   const outline = new Path2D()
-  pts.forEach((p, i) => (i ? outline.lineTo(p[0], p[1]) : outline.moveTo(p[0], p[1])))
+  for (let i = 0; i <= n; i++) {
+    const p = pts[i % n]
+    const q = pts[(i + 1) % n]
+    const mx = (p[0] + q[0]) / 2
+    const my = (p[1] + q[1]) / 2
+    if (i === 0) outline.moveTo(mx, my)
+    else outline.quadraticCurveTo(p[0], p[1], mx, my)
+  }
   outline.closePath()
-  // soft shadow below (light from the upper left)
+  const steel = L.kind === 'steel' && !L.layer2
+  const tint = steel ? '58,141,222' : L.kind === 'remote' ? '245,236,205' : '235,240,250'
   ctx.save()
-  ctx.rotate(-rot)
-  ctx.translate(size * 0.16, size * 0.2)
-  ctx.rotate(rot)
-  for (const [k, a] of [[1.2, 0.05], [1.05, 0.07], [0.9, 0.09]] as const) {
+  ctx.globalAlpha = alpha
+  ctx.translate(x, y)
+  // soft shadow to the lower right
+  for (const [k, a, o] of [[1.15, 0.05, 0.22], [1.0, 0.07, 0.17], [0.85, 0.08, 0.12]] as const) {
     ctx.save()
+    ctx.translate(size * o * 0.8, size * o)
+    ctx.rotate(rot)
     ctx.scale(k, k)
     ctx.fillStyle = `rgba(15,18,25,${a})`
     ctx.fill(outline)
     ctx.restore()
   }
-  ctx.restore()
-  ctx.fillStyle = `rgba(${tint},${steel ? 0.62 : 0.42})`
+  ctx.rotate(rot)
+  ctx.fillStyle = `rgba(${tint},${steel ? 0.5 : 0.3})`
   ctx.fill(outline)
   ctx.save()
   ctx.clip(outline)
-  // facets: fan triangles from the inner vertices, each lit by its own tilt
-  const light: V = [-0.62, -0.78]
-  for (let i = 0; i < n; i++) {
-    const p = pts[i]
-    const q = pts[(i + 1) % n]
-    const c = inner[i % 3]
-    const tilt = rnd() * 2 - 1
-    const mx = (p[0] + q[0]) / 2 - c[0]
-    const my = (p[1] + q[1]) / 2 - c[1]
-    const ml = Math.hypot(mx, my) || 1
-    const lit = (mx / ml) * light[0] + (my / ml) * light[1] + tilt * 0.6
-    ctx.beginPath()
-    ctx.moveTo(c[0], c[1])
-    ctx.lineTo(p[0], p[1])
-    ctx.lineTo(q[0], q[1])
-    ctx.closePath()
-    ctx.fillStyle = lit > 0 ? `rgba(255,255,255,${(0.12 + 0.3 * lit).toFixed(3)})` : `rgba(20,25,40,${(0.06 - 0.14 * lit).toFixed(3)})`
-    ctx.fill()
-  }
-  // creases: inner vertices to the rim, each a bright line with a dark twin
+  // overall form: lit from the upper left
+  const lg = ctx.createRadialGradient(-size * 0.2, -size * 0.22, 0, 0, 0, size * 0.62)
+  lg.addColorStop(0, 'rgba(255,255,255,0.32)')
+  lg.addColorStop(0.6, 'rgba(255,255,255,0.08)')
+  lg.addColorStop(1, 'rgba(20,25,40,0.14)')
+  ctx.fillStyle = lg
+  ctx.fill(outline)
+  // soft folds: wide faint shade beside a thin soft bright ridge
   ctx.lineCap = 'round'
-  for (let i = 0; i < 14; i++) {
-    const c = inner[i % 3]
-    const e = i < n ? pts[i] : inner[(i + 1) % 3]
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'
-    ctx.lineWidth = 0.9
+  for (let i = 0; i < 7; i++) {
+    const a = rnd() * Math.PI * 2
+    const d = rnd() * size * 0.18
+    const sx = Math.cos(a) * d
+    const sy = Math.sin(a) * d
+    const b = a + Math.PI * (0.5 + rnd())
+    const l = size * (0.3 + rnd() * 0.3)
+    const ex = sx + Math.cos(b) * l
+    const ey = sy + Math.sin(b) * l
+    const cx = (sx + ex) / 2 + (rnd() - 0.5) * size * 0.25
+    const cy = (sy + ey) / 2 + (rnd() - 0.5) * size * 0.25
     ctx.beginPath()
-    ctx.moveTo(c[0] + 0.6, c[1] + 0.7)
-    ctx.lineTo(e[0] + 0.6, e[1] + 0.7)
+    ctx.moveTo(sx, sy)
+    ctx.quadraticCurveTo(cx, cy, ex, ey)
+    ctx.strokeStyle = 'rgba(20,25,40,0.08)'
+    ctx.lineWidth = size * 0.09
     ctx.stroke()
-    ctx.strokeStyle = 'rgba(255,255,255,0.42)'
-    ctx.lineWidth = 0.7
-    ctx.beginPath()
-    ctx.moveTo(c[0], c[1])
-    ctx.lineTo(e[0], e[1])
+    ctx.save()
+    ctx.translate(-size * 0.025, -size * 0.03)
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'
+    ctx.lineWidth = size * 0.06
     ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+    ctx.lineWidth = 0.8
+    ctx.stroke()
+    ctx.restore()
   }
-  // 3 specular glints on facets facing the light
+  // a few highlights
   for (let i = 0; i < 3; i++) {
-    const c = inner[i]
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'
+    const hx = (rnd() - 0.65) * size * 0.45
+    const hy = (rnd() - 0.65) * size * 0.45
+    ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.25 * rnd()})`
     ctx.beginPath()
-    ctx.ellipse(c[0] - size * 0.06, c[1] - size * 0.07, size * 0.05, size * 0.016, -0.7, 0, Math.PI * 2)
+    ctx.ellipse(hx, hy, size * (0.05 + rnd() * 0.04), size * 0.014, -0.7 + (rnd() - 0.5) * 0.6, 0, Math.PI * 2)
     ctx.fill()
   }
   ctx.restore()
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)'
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'
   ctx.lineWidth = 0.8
-  ctx.lineJoin = 'round'
   ctx.stroke(outline)
   // the tab sticks out of the wad
   if (L.kind !== 'remote') {
+    const p = pts[2]
     ctx.save()
-    ctx.translate(pts[2][0] * 0.95, pts[2][1] * 0.95)
-    ctx.rotate(Math.atan2(pts[2][1], pts[2][0]))
+    ctx.translate(p[0] * 0.92, p[1] * 0.92)
+    ctx.rotate(Math.atan2(p[1], p[0]))
     ctx.beginPath()
     rrPath(ctx, -0.05 * size, -0.13 * size, 0.42 * size, 0.26 * size, 0.08 * size)
-    ctx.fillStyle = steel ? '#F4F7FA' : '#F2B705'
+    ctx.fillStyle = L.layer2 ? 'rgba(255,255,255,0.5)' : steel ? '#F4F7FA' : '#F2B705'
     ctx.fill()
-    ctx.strokeStyle = steel ? 'rgba(60,80,110,0.4)' : 'rgba(120,80,0,0.45)'
+    ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.8)' : steel ? 'rgba(60,80,110,0.4)' : 'rgba(120,80,0,0.45)'
     ctx.lineWidth = 0.7
     ctx.stroke()
     ctx.restore()
