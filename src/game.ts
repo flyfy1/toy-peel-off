@@ -830,16 +830,25 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     }
     raf = requestAnimationFrame(tick)
   }
+  // session summary: sent when the page is hidden (before gtag flushes on pagehide), once per new count
+  let sentN = 0
+  const sendSession = () => {
+    if (sessionN > sentN) {
+      sentN = sessionN
+      ga('session_peels', { n: sessionN, one_pulls: onePulls })
+    }
+  }
   const onVis = () => {
     cancelAnimationFrame(raf)
-    if (!document.hidden) {
+    if (document.hidden) sendSession()
+    else {
       last = performance.now()
       raf = requestAnimationFrame(tick)
     }
   }
   document.addEventListener('visibilitychange', onVis)
   const onHide = () => {
-    if (sessionN > 0) ga('session_peels', { n: sessionN, one_pulls: onePulls })
+    sendSession()
     if (wad && !wad.off) wadOff('auto')
   }
   window.addEventListener('pagehide', onHide)
