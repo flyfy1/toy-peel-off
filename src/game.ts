@@ -1,19 +1,20 @@
 // Peel Off: game loop, input, peel model (stick-slip, zip, fall-back), detach, static cling,
 // object rotation, the 梗 layer, GA events and the dev harness.
 import { type Peel, type V, chord, dir, farX, liftPoint, mForFraction, mStar, peeledFraction } from './geom'
-import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, drawPhoneLive, drawSteelLive, filmMatrix, layoutFor, rrPath } from './scene'
+import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rrPath } from './scene'
+import { def, isKind } from './objects'
 import { type FilmState, drawFilm, drawWad, tabPoly } from './render'
 import { haptic, setupCanvas } from './engine/juice'
 import { sfx } from './sfx'
 import { act, track } from './analytics'
-import { t } from './i18n'
+import { t, tx } from './i18n'
 
 export interface GameEvents {
   onFirst: () => void
   /** Films peeled today, and whether the pill shows the remote's "Mum informed: no" variant. */
   onCount: (n: number, mum: boolean) => void
   /** A deadpan line under the object, or a chat bubble from Mum. */
-  onLine: (text: string, mode: 'line' | 'mum') => void
+  onLine: (text: string, mode: 'line' | 'mum', from?: string) => void
   /** A film came fully off: numbers for the share card (today, one-pulls this visit, the remote peeled). */
   onPeel?: (n: number, data: Record<string, number>) => void
 }
@@ -114,7 +115,8 @@ interface Wad {
 }
 
 export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
-  let kind: Kind = (Q.get('obj') as Kind) || 'phone'
+  const q0 = Q.get('obj')
+  let kind: Kind = isKind(q0) ? q0 : 'phone'
   let orderIx = ORDER.indexOf(kind)
   let L!: Layout
   let B!: Bakes
@@ -199,7 +201,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     film.on = true
     film.stress = true
     film.bloom = 0
-    restM = L.kind === 'remote' ? liftM(film.peel.u) : 0 // the remote's wrap has a dog-eared corner
+    restM = def(L.kind).tab === 'dogear' ? liftM(film.peel.u) : 0 // the remote's wrap has a dog-eared corner
     film.peel.m = restM
     uTarget = film.peel.u
     filmT0 = -1
@@ -211,7 +213,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
 
   function relayout(resize = false) {
     objL = layoutFor(kind, stage.w, stage.h, stage.dpr)
-    B = bake(objL, SEED + orderIx)
+    B = bake(objL, SEED + def(kind).ix)
     shadowCv = document.createElement('canvas')
     shadowCv.width = Math.ceil((stage.w * stage.dpr) / 6)
     shadowCv.height = Math.ceil((stage.h * stage.dpr) / 6)
@@ -244,7 +246,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   /** The thing to take hold of: the tab's centre, or the remote's dog-eared corner. */
   function grabPoint(): V {
-    if (L.kind === 'remote') return liftPoint(L.A, film.peel).p
+    if (def(L.kind).tab === 'dogear') return liftPoint(L.A, film.peel).p
     const tp = tabPoly(L)
     let x = 0
     let y = 0
@@ -262,19 +264,20 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     const dy = y - LL.cy
     const lx = Math.abs(c * dx - s * dy)
     const ly = Math.abs(s * dx + c * dy)
-    const hw = LL.kind === 'remote' ? LL.fw / 2 : LL.ow / 2
-    const hh = LL.kind === 'remote' ? LL.fh / 2 : LL.oh / 2
+    const hf = def(LL.kind).hitFilm
+    const hw = hf ? LL.fw / 2 : LL.ow / 2
+    const hh = hf ? LL.fh / 2 : LL.oh / 2
     return lx < hw + 4 && ly < hh + 4
   }
   const frac = () => peeledFraction(L.poly40, L.filmArea, L.A, film.peel.u, film.peel.m)
   const item = () => (L.layer2 ? 'phone2' : L.kind)
-  const variant = () => L.kind
+  const variant = () => def(L.kind).sound
 
   // ---------- sound + haptics helpers ----------
   function tickAt(at: number, k: number) {
     const now = T
     tickTimes = tickTimes.filter((x) => now - x < 1)
-    if (tickTimes.length >= 120) return
+    if (tickTimes.length >= variant().rateCap) return
     tickTimes.push(now)
     sfx.peelTick(at, k, variant(), L.layer2 ? 0.6 : 1)
     hapticN++
@@ -418,9 +421,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       const wa = ang(pe.u) + Math.PI / 2 + (Math.random() - 0.5)
       film.wrinkles.push({ a: [c[0] - (Math.cos(wa) * wl) / 2, c[1] - (Math.sin(wa) * wl) / 2], b: [c[0] + (Math.cos(wa) * wl) / 2, c[1] + (Math.sin(wa) * wl) / 2] })
     }
-    if (L.kind === 'remote') {
-      ev.onLine(t('peel_mum_good'), 'mum')
-      ga('mum', { stage: 'relaid' })
+    const ch = def(L.kind).chat
+    if (ch) {
+      ev.onLine(tx(ch.good), 'mum', tx(ch.who))
+      ga(ch.ga, { stage: 'relaid' })
     }
   }
 
@@ -449,9 +453,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     ev.onCount(today, L.kind === 'remote')
     if (L.kind === 'remote') remoteDone = 1
     ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone })
-    if (L.kind === 'remote') {
-      ev.onLine(t('peel_mum_done'), 'mum')
-      ga('mum', { stage: 'done' })
+    const ch = def(L.kind).chat
+    if (ch?.done) {
+      ev.onLine(tx(ch.done), 'mum', tx(ch.who))
+      ga(ch.ga, { stage: 'done' })
     }
     // the old wad lets go; the new one is born at the pointer
     if (wad && !wad.off) wadOff('auto')
@@ -618,7 +623,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       let tau = Math.max(0, (mt - pe.m) / F)
       let steps = 0
       const start = sfx.now
-      while (tau > 0.012 * adh() && steps < 12) {
+      const adhesion = def(L.kind).adhesion
+      while (tau > 0.012 * adh() * adhesion && steps < 12) {
         pe.m += Math.min(Math.max(0.006 * F, 0.55 * tau * F), mt - pe.m)
         steps++
         tau = Math.max(0, (mt - pe.m) / F)
@@ -627,7 +633,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
         const f = frac()
         for (let i = 0; i < steps; i++) tickAt(start + (i / steps) * dt, f)
         film.frontSeed = (film.frontSeed * 1103515245 + 12345) >>> 0
-        if (L.kind === 'steel') film.bloom = 1
+        if (def(L.kind).bloom) film.bloom = 1
         popBubbles()
       } else if (tau > 0.006) {
         stretch = clamp(tau / 0.02, 0, 1)
@@ -635,13 +641,14 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       }
       pe.stretch = 1 + 0.5 * tau
       frontSpeed = frontSpeed * 0.8 + 0.2 * ((pe.m - m0) / Math.max(dt, 1e-3))
-      pe.r = 0.035 * F + 0.03 * F * clamp(frontSpeed / (3 * F), 0, 1)
+      pe.r = (0.035 * F + 0.03 * F * clamp(frontSpeed / (3 * F), 0, 1)) * def(L.kind).curl
       hiss = clamp(frontSpeed / (3 * F), 0, 1)
       const f = frac()
-      if (L.kind === 'remote' && !mumWarned && f >= 0.15) {
+      const ch = def(L.kind).chat
+      if (ch && !mumWarned && f >= 0.15) {
         mumWarned = true
-        ev.onLine(t('peel_mum_warn'), 'mum')
-        ga('mum', { stage: 'warn' })
+        ev.onLine(tx(ch.warn), 'mum', tx(ch.who))
+        ga(ch.ga, { stage: 'warn' })
       }
       // zip: far enough and past the edge, or most of it off
       const d = Math.hypot(Math.max(0, -ptr[0], ptr[0] - L.fw), Math.max(0, -ptr[1], ptr[1] - L.fh))
@@ -653,7 +660,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       const prev = pe.m
       pe.m = zip.m0 + (zip.m1 - zip.m0) * k * k
       pe.stretch = 1
-      pe.r = 0.065 * L.F
+      pe.r = 0.065 * L.F * def(L.kind).curl
       zip.acc += dt * 120
       const start = sfx.now
       let i = 0
@@ -720,8 +727,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     ctx.drawImage(BB.base, 0, 0)
     ctx.setTransform(stage.dpr, 0, 0, stage.dpr, ox * stage.dpr, 0)
     const now = shotDate ?? new Date()
-    if (LL.kind === 'phone') drawPhoneLive(ctx, LL, now, shotDate ? true : uses24h())
-    else if (LL.kind === 'steel') drawSteelLive(ctx, LL, shotDate ? true : Math.floor(performance.now() / 500) % 2 === 0)
+    def(LL.kind).live?.(ctx, LL, { date: now, frozen: !!shotDate, gleam: gleamT >= 0 ? T - gleamT : -1, on: film.on, ms: performance.now() })
     if (withFilm) {
       // gleam: a diagonal band sweeps the clean surface 120 to 820 ms after detach
       if (gleamT >= 0 && T - gleamT > 0.12 && T - gleamT < 0.82) drawGleam(LL, (T - gleamT - 0.12) / 0.7)
@@ -872,7 +878,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     const a = R.diag + clamp(offDeg * DEG, R.lo, R.hi)
     const pe = film.peel
     pe.u = dir(a)
-    pe.r = rr * L.F
+    pe.r = rr * L.F * def(L.kind).curl
     pe.m = f >= 1 ? farX(L.poly40, L.A, pe.u) : mForFraction(L.poly40, L.filmArea, L.A, pe.u, f)
   }
   function shot(name: string) {
@@ -989,15 +995,6 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       canvas.removeEventListener('pointerup', onUp)
       canvas.removeEventListener('pointercancel', onUp)
     },
-  }
-}
-
-function uses24h(): boolean {
-  try {
-    const hc = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hourCycle
-    return hc === 'h23' || hc === 'h24'
-  } catch {
-    return true
   }
 }
 

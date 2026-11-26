@@ -1,6 +1,6 @@
 // Peel Off sounds (spec section 4). All synthesised with Web Audio; no files.
 
-export type Variant = 'phone' | 'steel' | 'remote'
+import type { Sound } from './objects'
 
 class Sfx {
   ctx: AudioContext | null = null
@@ -108,15 +108,15 @@ class Sfx {
   }
 
   /** One stick-slip step. k = peeled fraction (the pitch rises as the film comes off). */
-  peelTick(at: number, k: number, v: Variant, mul = 1) {
-    const pitch = v === 'steel' ? 0.8 : 1
-    const loud = v === 'steel' ? 1.3 : 1
+  peelTick(at: number, k: number, v: Sound, mul = 1) {
+    const pitch = v.pitch
+    const loud = v.gain
     const c = (2000 + 3000 * k) * pitch * (1 + (Math.random() * 2 - 1) * 0.15)
     this.burst(at, 0.003 + Math.random() * 0.002, c, 3, (0.05 + Math.random() * 0.07) * loud * mul)
-    if (v === 'remote') this.burst(at + 0.008 + Math.random() * 0.012, 0.004, 6000 + Math.random() * 3000, 2, 0.06 * mul)
+    if (v.crinkle) this.burst(at + 0.008 + Math.random() * 0.012, 0.004, 6000 + Math.random() * 3000, 2, 0.06 * mul)
   }
 
-  bubblePop(at: number, v: Variant) {
+  bubblePop(at: number, v: Sound) {
     this.peelTick(at, 0.5, v, 0.6)
     this.sine(at, 900, 0.015, 0.04)
   }

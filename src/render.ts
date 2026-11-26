@@ -1,6 +1,7 @@
 // Per-frame film drawing (spec 3.4 to 3.7): stuck film, bubbles, peel front, flap shadow, roll, flap, tab.
 import { type Peel, type Poly, type V, K_FLAP, chord, clipHalf, liftPoint, liftS } from './geom'
 import { type Bakes, type Bubble, type Layout, filmMatrix, rng, rrPath } from './scene'
+import { def } from './objects'
 
 /** One light, upper left and above (screen space, z toward the viewer). */
 const LIGHT3 = (() => {
@@ -214,7 +215,7 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
 
   const curl = peeled ? curlFootprint(L, pe) : null
   const flap = peeled ? flapOutline(L, pe) : null
-  const tab = L.kind === 'remote' ? null : tabPoly(L)
+  const tab = def(L.kind).tab === 'dogear' ? null : tabPoly(L)
   const tabMapped = tab ? tab.map((p) => liftPoint(p, pe)) : null
 
   // ---------- L5 peel front ----------
@@ -226,7 +227,7 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
       rrPath(ctx, 0, 0, L.fw, L.fh, L.frad)
       ctx.clip()
       const rnd = rng(st.frontSeed)
-      if (L.kind === 'steel') {
+      if (def(L.kind).bloom) {
         // adhesive bloom on the metal just uncovered
         // a milky, faintly iridescent haze with a darker wet line where the glue just let go
         const b = st.bloom
@@ -345,7 +346,7 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
     for (const q of curl.quads) pathPoly(ctx, q)
     ctx.clip()
     // film body: the back face of the rolled film, a little denser than flat (seen at an angle)
-    ctx.fillStyle = L.kind === 'steel' ? 'rgba(58,141,222,0.42)' : L.kind === 'remote' ? 'rgba(235,228,200,0.30)' : 'rgba(225,232,245,0.20)'
+    ctx.fillStyle = def(L.kind).flapTint
     ctx.fill()
     const g0 = P(A, u, m - r, 0)
     const g1 = P(A, u, m, 0)
@@ -497,7 +498,7 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
 }
 
 function drawBubble(ctx: CanvasRenderingContext2D, L: Layout, b: Bubble) {
-  const steel = L.kind === 'steel'
+  const rim = def(L.kind).rim
   const k = b.big ? 1.25 : 1
   ctx.save()
   ctx.beginPath()
@@ -513,7 +514,7 @@ function drawBubble(ctx: CanvasRenderingContext2D, L: Layout, b: Bubble) {
   // rims in screen orientation: light upper-left inside edge, dark lower-right
   const lw = Math.max(0.9, 0.16 * Math.min(b.rx, b.ry))
   ctx.lineWidth = lw
-  ctx.strokeStyle = steel ? `rgba(20,40,70,${0.2 * k})` : `rgba(0,0,0,${0.16 * k})`
+  ctx.strokeStyle = `rgba(${rim[0]},${rim[1] * k})`
   ctx.beginPath()
   ctx.ellipse(b.p[0] - lw * 0.7, b.p[1] - lw * 0.8, b.rx, b.ry, b.a, 0, Math.PI * 2)
   ctx.stroke()
@@ -529,7 +530,9 @@ function drawBubble(ctx: CanvasRenderingContext2D, L: Layout, b: Bubble) {
 }
 
 function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: boolean) {
-  const steel = L.kind === 'steel'
+  const style = def(L.kind).tab
+  const steel = style === 'white-arrow'
+  const clear = L.layer2 || style === 'clear'
   ctx.save()
   ctx.beginPath()
   pathPoly(ctx, pts)
@@ -543,7 +546,7 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   cx /= pts.length
   cy /= pts.length
   const g = ctx.createLinearGradient(cx - L.T * 0.5, cy - L.T * 0.5, cx + L.T * 0.5, cy + L.T * 0.5)
-  if (L.layer2) {
+  if (clear) {
     g.addColorStop(0, 'rgba(255,255,255,0.55)')
     g.addColorStop(1, 'rgba(225,235,245,0.4)')
   } else if (steel) {
@@ -563,14 +566,14 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   ctx.translate(0.6, 0.6)
   ctx.stroke()
   ctx.restore()
-  ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.7)' : steel ? 'rgba(60,80,110,0.35)' : 'rgba(150,100,0,0.55)'
+  ctx.strokeStyle = clear ? 'rgba(255,255,255,0.7)' : steel ? 'rgba(60,80,110,0.35)' : 'rgba(150,100,0,0.55)'
   ctx.lineWidth = 0.7
   ctx.stroke()
   // printed arrow pointing along the pull (into the film)
   const out = L.out
   const ax = cx + out[0] * 0.12 * L.T
   const ay = cy + out[1] * 0.12 * L.T
-  ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.8)' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
+  ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
   ctx.lineWidth = Math.max(1, 0.07 * L.T)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
@@ -607,8 +610,9 @@ export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: 
     else outline.quadraticCurveTo(p[0], p[1], mx, my)
   }
   outline.closePath()
-  const steel = L.kind === 'steel' && !L.layer2
-  const tint = steel ? '58,141,222' : L.kind === 'remote' ? '245,236,205' : '235,240,250'
+  const D = def(L.kind)
+  const steel = D.tab === 'white-arrow' && !L.layer2
+  const tint = L.layer2 ? '235,240,250' : D.wadTint
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.translate(x, y)
@@ -623,7 +627,7 @@ export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: 
     ctx.restore()
   }
   ctx.rotate(rot)
-  ctx.fillStyle = `rgba(${tint},${steel ? 0.5 : 0.3})`
+  ctx.fillStyle = `rgba(${tint},${L.layer2 ? 0.3 : D.wadA})`
   ctx.fill(outline)
   ctx.save()
   ctx.clip(outline)
@@ -677,16 +681,17 @@ export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: 
   ctx.lineWidth = 0.8
   ctx.stroke(outline)
   // the tab sticks out of the wad
-  if (L.kind !== 'remote') {
+  if (D.tab !== 'dogear') {
     const p = pts[2]
     ctx.save()
     ctx.translate(p[0] * 0.92, p[1] * 0.92)
     ctx.rotate(Math.atan2(p[1], p[0]))
     ctx.beginPath()
     rrPath(ctx, -0.05 * size, -0.13 * size, 0.42 * size, 0.26 * size, 0.08 * size)
-    ctx.fillStyle = L.layer2 ? 'rgba(255,255,255,0.5)' : steel ? '#F4F7FA' : '#F2B705'
+    const clear = L.layer2 || D.tab === 'clear'
+    ctx.fillStyle = clear ? 'rgba(255,255,255,0.5)' : steel ? '#F4F7FA' : '#F2B705'
     ctx.fill()
-    ctx.strokeStyle = L.layer2 ? 'rgba(255,255,255,0.8)' : steel ? 'rgba(60,80,110,0.4)' : 'rgba(120,80,0,0.45)'
+    ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : steel ? 'rgba(60,80,110,0.4)' : 'rgba(120,80,0,0.45)'
     ctx.lineWidth = 0.7
     ctx.stroke()
     ctx.restore()
