@@ -93,7 +93,7 @@ export default function App() {
         </Suspense>
       )}
       {!bare && mum && (
-        <div key={mum.id} className="peel-mum pointer-events-none fixed inset-x-0 top-16 z-10 flex justify-center px-4 select-none">
+        <div key={mum.id} data-busy="" className="peel-mum pointer-events-none fixed inset-x-0 top-16 z-10 flex justify-center px-4 select-none">
           <div className="max-w-[340px] rounded-2xl rounded-tl-md bg-white/95 px-3.5 py-2 text-[15px] leading-snug text-[#2B2620] shadow-[0_6px_20px_rgba(60,45,30,.18)]">
             <div className="text-[12px] font-semibold text-[#3A8DDE]">{mum.from || t('peel_mum')}</div>
             {mum.text}

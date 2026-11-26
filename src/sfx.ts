@@ -160,6 +160,12 @@ class Sfx {
     this.burst(this.now, 0.02, 2500, 3, 0.05)
   }
 
+  /** a bare remote's rubber button, pressed: a short dull click */
+  click() {
+    this.burst(this.now, 0.012, 1800, 2, 0.09)
+    this.sine(this.now, 220, 0.03, 0.04, 160)
+  }
+
   bell() {
     const t = this.now
     this.sine(t, 1175, 0.9, 0.06)

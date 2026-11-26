@@ -1,5 +1,6 @@
 // Peel Off: game loop, input, peel model (stick-slip, zip, fall-back), detach, static cling,
 // object rotation, the 梗 layer, GA events and the dev harness.
+import { offer } from './share'
 import { type Peel, type V, K_FLAP, area, chord, clipHalf, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
 import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rng, rrPath } from './scene'
 import { OBJ, def, isKind } from './objects'
@@ -404,6 +405,15 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     const p = toFilm(e.clientX, e.clientY)
     if (!film.on) {
       const D = def(L.kind)
+      // the bare remote (a portal to yoink): a tap presses a button and holds it here up to 8 s more (it would
+      // go to the next object); the 2nd tap may show Mum's message about another table
+      if (L.kind === 'remote' && !L.layer2 && onObject(e.clientX, e.clientY)) {
+        sfx.click()
+        if (nextAt >= 0) nextAt = Math.max(nextAt, T + 8)
+        busy()
+        offer('peel', 'remote', () => (L.kind === 'remote' && !film.on && !trans ? [stage.w / 2, 48] : null), 900)
+        return
+      }
       // the extras on a clean object: the car takes one fingerprint, the microwave's sliver flicks
       if (D.touch && !printDone && gleamT >= 0 && T - gleamT > 0.82 && onObject(e.clientX, e.clientY)) {
         printDone = true
