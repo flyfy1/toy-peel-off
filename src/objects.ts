@@ -7,8 +7,8 @@ import type { Bakes } from './scene'
 import type { FilmState } from './render'
 
 export type Corner = 'br' | 'tr' | 'bl' | 'tl'
-/** yellow: printed pull tab; white-arrow: white tab, blue arrow; dogear: no tab, a lifted corner; clear: clear tab with a red dot. */
-export type TabStyle = 'yellow' | 'white-arrow' | 'dogear' | 'clear'
+/** yellow: printed pull tab; white-arrow: white tab, blue arrow; red-arrow: white tab, red arrow; dogear: no tab, a lifted corner; clear: clear tab with a red dot. */
+export type TabStyle = 'yellow' | 'white-arrow' | 'red-arrow' | 'dogear' | 'clear'
 export type Glare = 'bands2' | 'band1' | 'crinkle' | ((ctx: CanvasRenderingContext2D, L: Layout, band: (c: number, w: number, a: number) => void) => void)
 
 export interface Sound {
@@ -38,6 +38,8 @@ export interface LiveState {
   on: boolean
   /** performance.now() in ms. */
   ms: number
+  /** Seconds since the object's extra spot was tapped (the fridge's energy label), or -1. */
+  tap: number
 }
 
 export interface ObjDef {
@@ -58,8 +60,10 @@ export interface ObjDef {
   wadTint: string
   wadA: number
   haze: number
-  /** The remote's yellowed wrap: a yellow cast and a blotchy yellow noise. */
-  aged?: boolean
+  /** The remote's yellowed wrap: a yellow cast and a blotchy yellow noise; a number sets the cast's alpha (true: 0.10). */
+  aged?: boolean | number
+  /** Crinkle glare: how many creases (default 40). */
+  crinkles?: number
   glare: Glare
   scratches: number
   /** Greasy fingerprints on the film (the remote). */
@@ -73,10 +77,14 @@ export interface ObjDef {
   rim: [string, number]
   adhesion: number
   curl: number
+  /** Stick-slip step length multiplier (a thick film moves in longer, heavier steps). */
+  slip?: number
   sound: Sound
   /** Adhesive bloom on the uncovered side (steel). */
   bloom?: boolean
   stall?: Stall
+  /** Peeled fractions at which the brittle film snaps along the fold (each seeded +/- 0.05). */
+  brittle?: number[]
   /** Ground under the object; `well` adds the recessed tray well (with finger notches). */
   ground: 'tray' | 'sofa' | ((ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) => void)
   well: boolean
@@ -87,10 +95,18 @@ export interface ObjDef {
   live?(ctx: CanvasRenderingContext2D, L: Layout, s: LiveState): void
   /** Drawn above the film and the flap (the microwave's trim). */
   over?(ctx: CanvasRenderingContext2D, L: Layout): void
-  /** A chat bubble from someone with opinions about the film: sender, at 15%, on fall-back, when off; GA event name. */
-  chat?: { who: string; warn: string; good: string; done?: string; ga: string }
+  /** A chat bubble from someone with opinions about the film: sender, at 15% (or at the first grab), on fall-back, when off; GA event name. */
+  chat?: { who: string; warn: string; good?: string; done?: string; ga: string; atGrab?: boolean }
   /** Draws the detached film instead of the crumpled wad (the watch's stiff disc); size is the wad's. */
   wad?: (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, alpha: number) => void
+  /** The wad's size multiplier, a printed band on it (rgba), and how many shakes it takes to lose it (default 1). */
+  wadScale?: number
+  wadBand?: string
+  shakes?: number
+  /** The gleam after the film comes off: [peak alpha, half width in F, seconds] (default 0.38, 0.3, 0.7). */
+  gleam?: [number, number, number]
+  /** A spot on the clean object that answers a tap (screen css px): its line and the GA `what`. */
+  tap?: { hit: (L: Layout, x: number, y: number) => boolean; line: string; what: string }
   /** Draws the film left under a trim (the microwave's sliver): where the fold has passed, or all of it. */
   sliver?: (ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st: FilmState, all: boolean) => void
   /** Draws the one fingerprint (the car), css px. */

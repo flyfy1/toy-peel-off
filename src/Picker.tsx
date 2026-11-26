@@ -13,6 +13,9 @@ const GLYPH: Partial<Record<Kind, string>> = {
   watch: 'M12 7a5 5 0 1 0 0 10a5 5 0 1 0 0-10M9.5 7.6V2h5v5.6M9.5 16.4V22h5v-5.6M12 9.5V12l1.6 1',
   car: 'M4 7h16a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM6 14l4-3 3 1 4-3',
   micro: 'M8 2h8a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM9.5 4.5h5v3h-5zM10 11v.1M14 11v.1M10 14v.1M14 14v.1M9.5 18h5',
+  fridge: 'M7 2h10a1 1 0 0 1 1 1v19M6 22V3a1 1 0 0 1 1-1M6 13h12M15.5 5v5M15.5 15.5v4M8.5 16h2.5v3h-2.5z',
+  laptop: 'M6 3h12a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 18 21H6a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 6 3zM6.5 3v18M13 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3',
+  cabinet: 'M5 3h14v18H5zM7.5 13.5v5M5 3l4 0l-4 4zM19 21l-3.5 0l3.5-3.5',
 }
 
 export default function Picker({ api, onClose }: { api: GameApi; onClose: () => void }) {

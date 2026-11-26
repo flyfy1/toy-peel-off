@@ -32,6 +32,8 @@ export interface FilmState {
   /** The microwave: the last corner tore off with the sliver (after the stall), and the sliver is flicking. */
   torn: boolean
   flick: boolean
+  /** The cabinet's brittle film: everything closer to A than this (along u) has snapped off; 0 otherwise. */
+  cut: number
 }
 
 const P = (A: V, u: V, X: number, Y: number): V => [A[0] + u[0] * X - u[1] * Y, A[1] + u[1] * X + u[0] * Y]
@@ -95,7 +97,7 @@ function lightInPeel(L: Layout, u: V) {
 }
 
 /** The roll as seen from above: the curl strips' footprints as quads (same winding, so a nonzero fill is their union), and its two edge traces. */
-function curlFootprint(L: Layout, pe: Peel): { quads: Poly[]; lo: Poly; hi: Poly; ys: number[] } | null {
+function curlFootprint(L: Layout, pe: Peel, cut: number): { quads: Poly[]; lo: Poly; hi: Poly; ys: number[] } | null {
   const { A, u, m, r } = pe
   const N = 18
   const lo: Poly = []
@@ -105,6 +107,7 @@ function curlFootprint(L: Layout, pe: Peel): { quads: Poly[]; lo: Poly; hi: Poly
   for (let i = 0; i <= N; i++) {
     const s = (i / N) * Math.PI * r
     if (s > m + 1e-6) break
+    if (cut && m - s < cut) break
     const c = chord(L.polyDense, A, u, m - s)
     if (!c) continue
     const X = m - r * Math.sin(s / r)
@@ -135,12 +138,13 @@ function curlFootprint(L: Layout, pe: Peel): { quads: Poly[]; lo: Poly; hi: Poly
 }
 
 /** Flat flap outline (mapped), with the pulled corner lifted 6% toward the viewer. Returns also which edges are free (cut) edges. */
-function flapOutline(L: Layout, pe: Peel): { poly: Poly; free: boolean[]; heights: number[]; Q: V } | null {
+function flapOutline(L: Layout, pe: Peel, gone: number): { poly: Poly; free: boolean[]; heights: number[]; Q: V } | null {
   const { A, u, m, r } = pe
   const cut = m - Math.PI * r
   const Q = liftPoint(A, pe).p
-  if (cut <= 0) return { poly: [], free: [], heights: [], Q }
-  const src = clipHalf(L.polyDense, A, u, cut, true)
+  if (cut <= gone) return { poly: [], free: [], heights: [], Q }
+  let src = clipHalf(L.polyDense, A, u, cut, true)
+  if (gone) src = ragged(clipHalf(src, A, u, gone, false), A, u, gone, L.F)
   if (src.length < 3) return { poly: [], free: [], heights: [], Q }
   const poly: Poly = []
   const heights: number[] = []
@@ -161,6 +165,29 @@ function flapOutline(L: Layout, pe: Peel): { poly: Poly; free: boolean[]; height
   }
   const free = poly.map((_, i) => !(onCut[i] && onCut[(i + 1) % poly.length]))
   return { poly, free, heights, Q }
+}
+
+/** The snapped edge of a brittle film: the straight edge on x = gone becomes a ragged one (into the film, up to 0.014 F). */
+function ragged(src: Poly, A: V, u: V, gone: number, F: number): Poly {
+  const v: V = [-u[1], u[0]]
+  const on = (p: V) => Math.abs((p[0] - A[0]) * u[0] + (p[1] - A[1]) * u[1] - gone) < 1e-4
+  const out: Poly = []
+  for (let i = 0; i < src.length; i++) {
+    const p = src[i]
+    const q = src[(i + 1) % src.length]
+    out.push(p)
+    if (!on(p) || !on(q)) continue
+    const yp = (p[0] - A[0]) * v[0] + (p[1] - A[1]) * v[1]
+    const yq = (q[0] - A[0]) * v[0] + (q[1] - A[1]) * v[1]
+    const n = Math.max(2, Math.round(Math.abs(yq - yp) / 5))
+    for (let k = 1; k < n; k++) {
+      const y = yp + ((yq - yp) * k) / n
+      const d = F * (0.007 + 0.007 * Math.sin(y * 0.9 + gone) * Math.sin(y * 0.37 + 1.3 * gone))
+      const x = gone + Math.abs(d)
+      out.push([A[0] + u[0] * x + v[0] * y, A[1] + u[1] * x + v[1] * y])
+    }
+  }
+  return out
 }
 
 export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st: FilmState, shadowCv: HTMLCanvasElement) {
@@ -223,8 +250,8 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
     setFilm(ctx)
   }
 
-  const curl = peeled ? curlFootprint(L, pe) : null
-  const flap = peeled ? flapOutline(L, pe) : null
+  const curl = peeled ? curlFootprint(L, pe, st.cut) : null
+  const flap = peeled ? flapOutline(L, pe, st.cut) : null
   const tab = def(L.kind).tab === 'dogear' ? null : tabPoly(L)
   const tabMapped = tab ? tab.map((p) => liftPoint(p, pe)) : null
 
@@ -553,7 +580,8 @@ function drawBubble(ctx: CanvasRenderingContext2D, L: Layout, b: Bubble) {
 
 function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: boolean) {
   const style = def(L.kind).tab
-  const steel = style === 'white-arrow'
+  const red = style === 'red-arrow'
+  const steel = style === 'white-arrow' || red
   const clear = L.layer2 || style === 'clear'
   ctx.save()
   ctx.beginPath()
@@ -603,7 +631,7 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
     ctx.restore()
     return
   }
-  ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
+  ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : red ? '#D7322B' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
   ctx.lineWidth = Math.max(1, 0.07 * L.T)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
@@ -643,7 +671,7 @@ export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: 
   }
   outline.closePath()
   const D = def(L.kind)
-  const steel = D.tab === 'white-arrow' && !L.layer2
+  const steel = (D.tab === 'white-arrow' || D.tab === 'red-arrow') && !L.layer2
   const tint = L.layer2 ? '235,240,250' : D.wadTint
   ctx.save()
   ctx.globalAlpha = alpha
@@ -707,6 +735,19 @@ export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: 
     ctx.beginPath()
     ctx.ellipse(hx, hy, size * (0.05 + rnd() * 0.04), size * 0.014, -0.7 + (rnd() - 0.5) * 0.6, 0, Math.PI * 2)
     ctx.fill()
+  }
+  if (D.wadBand) {
+    // the printed band, crumpled in: two broken blue strokes across the wad
+    ctx.strokeStyle = D.wadBand
+    ctx.lineWidth = size * 0.07
+    for (let i = 0; i < 2; i++) {
+      const a = rnd() * Math.PI
+      const o = (rnd() - 0.5) * size * 0.4
+      ctx.beginPath()
+      ctx.moveTo(Math.cos(a) * -size * 0.4 - Math.sin(a) * o, Math.sin(a) * -size * 0.4 + Math.cos(a) * o)
+      ctx.quadraticCurveTo((rnd() - 0.5) * size * 0.3, (rnd() - 0.5) * size * 0.3, Math.cos(a) * size * 0.4 - Math.sin(a) * o, Math.sin(a) * size * 0.4 + Math.cos(a) * o)
+      ctx.stroke()
+    }
   }
   ctx.restore()
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'

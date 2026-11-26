@@ -1,5 +1,6 @@
 // The newer things to peel (peel-more.md section 3): camera island, smartwatch, car centre screen, microwave
-// panel. Loaded after the first peel (or before the first frame when a link names one); their text rides along.
+// panel, fridge door, laptop lid, kitchen cabinet door. Loaded after the first peel (or before the first frame
+// when a link names one); their text rides along.
 import { type Bubble, type Layout, drawNoise, objectPath, rrPath } from './kit'
 import type { Poly, V } from './geom'
 import { type Bakes, filmMatrix } from './scene'
@@ -25,6 +26,15 @@ const STR: Record<Locale, Record<string, string>> = {
     peel_tag_watch: 'Someone left you the film on a new watch. It has said 10:09 all along.',
     peel_tag_car: 'Someone left you the film on their car screen. The dealer says it is factory-fitted.',
     peel_tag_micro: 'Someone left you the film on a microwave. They gave up on the edge.',
+    peel_name_fridge: 'the fridge door', peel_name_laptop: 'the laptop', peel_name_cabinet: 'the kitchen cabinet',
+    peel_fridge_after: 'So that is the colour you bought.',
+    peel_fridge_label: 'The energy label stays. It looks efficient.',
+    peel_laptop_after: 'Keep the film. The return window is still open.',
+    peel_cabinet_mum: 'Three years ago: "Peel it after we move in."',
+    peel_cabinet_snap: 'Left on too long. It has gone brittle.',
+    peel_tag_fridge: 'Someone left you the film on a fridge door. It is a big one.',
+    peel_tag_laptop: 'Someone left you the film on a new laptop. The case is already ordered.',
+    peel_tag_cabinet: 'Someone left you the film on a kitchen cabinet. Three years on. It has gone brittle.',
   },
   'zh-CN': {
     peel_name_cam: '摄像头', peel_name_watch: '手表', peel_name_car: '车机', peel_name_micro: '微波炉',
@@ -39,6 +49,15 @@ const STR: Record<Locale, Record<string, string>> = {
     peel_tag_watch: '有人把手表的膜留给你撕。上面一直是 10:09。',
     peel_tag_car: '有人把车机的膜留给你撕。4S 店说是原厂的。',
     peel_tag_micro: '有人把微波炉的膜留给你撕。缝里那圈 TA 放弃了。',
+    peel_name_fridge: '冰箱门', peel_name_laptop: '新电脑', peel_name_cabinet: '橱柜门',
+    peel_fridge_after: '原来冰箱是这个颜色。',
+    peel_fridge_label: '能效标识不撕。显得省电。',
+    peel_laptop_after: '膜先别扔。七天无理由。',
+    peel_cabinet_mum: '三年前：“等搬进去再撕。”',
+    peel_cabinet_snap: '放太久，脆了。',
+    peel_tag_fridge: '有人把冰箱门的膜留给你撕。好大一张。',
+    peel_tag_laptop: '有人把新电脑的膜留给你撕。保护壳已经下单了。',
+    peel_tag_cabinet: '有人把橱柜的膜留给你撕。贴了三年，脆了。',
   },
   es: {
     peel_name_cam: 'la cámara', peel_name_watch: 'el reloj', peel_name_car: 'la pantalla del coche', peel_name_micro: 'el microondas',
@@ -53,6 +72,15 @@ const STR: Record<Locale, Record<string, string>> = {
     peel_tag_watch: 'Alguien te ha dejado el plástico de un reloj nuevo. Siempre ha marcado las 10:09.',
     peel_tag_car: 'Alguien te ha dejado el plástico de la pantalla del coche. En el concesionario dicen que viene de fábrica.',
     peel_tag_micro: 'Alguien te ha dejado el plástico de un microondas. Con el borde se rindió.',
+    peel_name_fridge: 'la puerta de la nevera', peel_name_laptop: 'el portátil', peel_name_cabinet: 'el armario de la cocina',
+    peel_fridge_after: 'Así que ese era el color.',
+    peel_fridge_label: 'La etiqueta energética se queda. Da imagen de ahorro.',
+    peel_laptop_after: 'No tires el plástico. Aún estás en plazo de devolución.',
+    peel_cabinet_mum: 'Hace tres años: «Ya lo quitamos cuando nos mudemos».',
+    peel_cabinet_snap: 'Demasiado tiempo puesto. Se ha vuelto quebradizo.',
+    peel_tag_fridge: 'Alguien te ha dejado el plástico de la puerta de una nevera. Es de los grandes.',
+    peel_tag_laptop: 'Alguien te ha dejado el plástico de un portátil nuevo. La funda ya está pedida.',
+    peel_tag_cabinet: 'Alguien te ha dejado el plástico de un armario de cocina. Lleva tres años. Está quebradizo.',
   },
   fr: {
     peel_name_cam: "l'appareil photo", peel_name_watch: 'la montre', peel_name_car: "l'écran de la voiture", peel_name_micro: 'le micro-ondes',
@@ -67,6 +95,15 @@ const STR: Record<Locale, Record<string, string>> = {
     peel_tag_watch: "Quelqu'un vous a laissé le film d'une montre neuve. Il a toujours indiqué 10 h 09.",
     peel_tag_car: "Quelqu'un vous a laissé le film de l'écran de sa voiture. Le concessionnaire dit qu'il est d'origine.",
     peel_tag_micro: "Quelqu'un vous a laissé le film d'un micro-ondes. Pour le bord, il a renoncé.",
+    peel_name_fridge: 'la porte du frigo', peel_name_laptop: "l'ordinateur portable", peel_name_cabinet: 'le placard de la cuisine',
+    peel_fridge_after: "C'était donc cette couleur-là.",
+    peel_fridge_label: "L'étiquette énergie reste. Ça fait économe.",
+    peel_laptop_after: 'Gardez le film. Le délai de retour court encore.',
+    peel_cabinet_mum: "Il y a trois ans : « On l'enlèvera après l'emménagement. »",
+    peel_cabinet_snap: 'Resté trop longtemps. Il est devenu cassant.',
+    peel_tag_fridge: "Quelqu'un vous a laissé le film d'une porte de frigo. Un grand.",
+    peel_tag_laptop: "Quelqu'un vous a laissé le film d'un ordinateur neuf. La coque est déjà commandée.",
+    peel_tag_cabinet: "Quelqu'un vous a laissé le film d'un placard de cuisine. Trois ans qu'il est là. Il est cassant.",
   },
   ja: {
     peel_name_cam: 'カメラ', peel_name_watch: '腕時計', peel_name_car: '車のモニター', peel_name_micro: '電子レンジ',
@@ -81,6 +118,15 @@ const STR: Record<Locale, Record<string, string>> = {
     peel_tag_watch: '新しい腕時計のフィルムを残してくれた人がいます。ずっと 10:09 のままです。',
     peel_tag_car: '車のモニターのフィルムを残してくれた人がいます。ディーラーは純正だと言っています。',
     peel_tag_micro: '電子レンジのフィルムを残してくれた人がいます。ふちはあきらめたそうです。',
+    peel_name_fridge: '冷蔵庫のドア', peel_name_laptop: 'ノートパソコン', peel_name_cabinet: '台所の戸棚',
+    peel_fridge_after: 'こんな色だったのか。',
+    peel_fridge_label: '省エネラベルははがさない。節電して見えるから。',
+    peel_laptop_after: 'フィルムは捨てないで。まだ返品できるから。',
+    peel_cabinet_mum: '3年前：「引っ越してからはがしましょ」',
+    peel_cabinet_snap: '貼りっぱなしで、もろくなっている。',
+    peel_tag_fridge: '冷蔵庫のドアのフィルムを残してくれた人がいます。大きいです。',
+    peel_tag_laptop: '新しいノートパソコンのフィルムを残してくれた人がいます。ケースはもう注文済みです。',
+    peel_tag_cabinet: '台所の戸棚のフィルムを残してくれた人がいます。3年貼りっぱなしで、もろくなっています。',
   },
 }
 
@@ -92,6 +138,13 @@ const metal = (ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number
   g.addColorStop(0.3, '#E6E9ED')
   g.addColorStop(0.62, '#6E747C')
   g.addColorStop(1, '#C9CED4')
+  return g
+}
+
+/** A gradient from (x0, y0) to (x1, y1), or a radial one of radius r1 around it when r1 is given: stops as offset, colour pairs. */
+function grad(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, s: (number | string)[], r1?: number) {
+  const g = r1 ? ctx.createRadialGradient(x0, y0, 0, x0, y0, r1) : ctx.createLinearGradient(x0, y0, x1, y1)
+  for (let i = 0; i < s.length; i += 2) g.addColorStop(s[i] as number, s[i + 1] as string)
   return g
 }
 
@@ -1067,6 +1120,407 @@ function microPrint(ctx: CanvasRenderingContext2D, L: Layout) {
   ctx.restore()
 }
 
+// ------------------------------------- fridge: the upper door -------------------------------------
+
+const BLUE = '#2C6FC4'
+
+function fridgeGround(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) {
+  const { w, h, cx, cy } = L
+  const FW = L.ow
+  // the carton: light cardboard with its corrugation showing through
+  ctx.fillStyle = '#D8C7A8'
+  ctx.fillRect(0, 0, w, h)
+  for (let x = 0; x < w; x += 7) {
+    ctx.fillStyle = 'rgba(120,95,60,0.07)'
+    ctx.fillRect(x, 0, 2.5, h)
+  }
+  drawNoise(ctx, 0, 0, w, h, 50, rnd, '120,95,60', 0.08)
+  drawNoise(ctx, 0, 0, w, h, 3, rnd, '255,250,240', 0.06)
+  // the fridge body behind the door, and the lower door running out of the carton
+  const x0 = cx - FW / 2 - 0.015 * FW
+  const top = cy + L.oh / 2 + 0.03 * FW
+  ctx.fillStyle = '#2E353D'
+  ctx.fillRect(x0, cy - L.oh / 2 - 0.01 * FW, FW + 0.03 * FW, h)
+  ctx.fillStyle = grad(ctx, cx - FW / 2, 0, cx + FW / 2, 0, [0, '#46515C', 0.5, '#3E4852', 1, '#353E47'])
+  ctx.beginPath()
+  rrPath(ctx, cx - FW / 2, top, FW, h, 0.02 * FW)
+  ctx.fill()
+  // the carton's front panel, folded down, with a strip of tape
+  const cy0 = Math.max(top + 0.12 * FW, h - 0.09 * h)
+  ctx.fillStyle = 'rgba(60,45,25,0.25)'
+  ctx.fillRect(0, cy0 - 5, w, 5)
+  ctx.fillStyle = grad(ctx, 0, cy0, 0, h, [0, '#CBB894', 1, '#BFAA83'])
+  ctx.fillRect(0, cy0, w, h - cy0)
+  ctx.fillStyle = 'rgba(235,225,200,0.55)'
+  ctx.fillRect(cx - 0.12 * FW, cy0, 0.24 * FW, h - cy0)
+  groundLight(ctx, L, 0.3, 0.18)
+}
+
+function fridgeBake(ctx: CanvasRenderingContext2D, L: Layout) {
+  const FW = L.ow
+  const FH = L.oh
+  ctx.save()
+  ctx.translate(L.cx, L.cy)
+  ctx.beginPath()
+  objectPath(ctx, L)
+  // 星空灰 tinted glass, deeper toward the bottom
+  ctx.fillStyle = grad(ctx, 0, -FH / 2, 0, FH / 2, [0, '#53606C', 0.5, '#4A5560', 1, '#3E4852'])
+  ctx.fill()
+  ctx.save()
+  ctx.clip()
+  // two soft vertical light bands and a dim mirror image of a window
+  for (const [x, wd, a] of [[-0.22, 0.2, 0.16], [0.12, 0.08, 0.1]]) {
+    ctx.fillStyle = grad(ctx, (x - wd) * FW, 0, (x + wd) * FW, 0, [0, 'rgba(255,255,255,0)', 0.5, `rgba(225,235,245,${a})`, 1, 'rgba(255,255,255,0)'])
+    ctx.fillRect(-FW / 2, -FH / 2, FW, FH)
+  }
+  ctx.fillStyle = 'rgba(210,225,240,0.07)'
+  const wx = -0.38 * FW
+  const wy = -0.42 * FH
+  ctx.fillRect(wx, wy, 0.42 * FW, 0.3 * FH)
+  ctx.fillStyle = 'rgba(30,36,44,0.18)'
+  ctx.fillRect(wx + 0.2 * FW, wy, 0.02 * FW, 0.3 * FH)
+  ctx.fillRect(wx, wy + 0.14 * FH, 0.42 * FW, 0.012 * FH)
+  // the handle groove down the right edge: dark inner shadow, a light lower lip
+  const hx = FW / 2 - 0.075 * FW
+  ctx.fillStyle = grad(ctx, hx, 0, hx + 0.05 * FW, 0, [0, 'rgba(10,12,16,0.75)', 0.6, 'rgba(25,30,36,0.5)', 1, 'rgba(160,175,190,0.35)'])
+  ctx.beginPath()
+  rrPath(ctx, hx, -0.36 * FH, 0.05 * FW, 0.72 * FH, 0.025 * FW)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(200,212,225,0.35)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(hx + 0.05 * FW, -0.35 * FH)
+  ctx.lineTo(hx + 0.05 * FW, 0.35 * FH)
+  ctx.stroke()
+  ctx.restore()
+  // the touch display near the top: 4° and -18°
+  const dw = 0.3 * FW
+  const dy = -FH / 2 + 0.09 * FH
+  ctx.fillStyle = 'rgba(12,15,20,0.55)'
+  ctx.beginPath()
+  rrPath(ctx, -dw / 2, dy, dw, 0.07 * FW + 0.03 * FH, 0.02 * FW)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(235,245,255,0.92)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `300 ${0.05 * FH}px system-ui, sans-serif`
+  const ty = dy + (0.07 * FW + 0.03 * FH) / 2
+  ctx.fillText('4°', -0.07 * FW, ty)
+  ctx.fillStyle = 'rgba(140,200,255,0.92)'
+  ctx.font = `300 ${0.036 * FH}px system-ui, sans-serif`
+  ctx.fillText('-18°', 0.075 * FW, ty)
+  ctx.restore()
+}
+
+/** The energy label, lower left: not film, it stays. Object-local rect. */
+const labelRect = (L: Layout) => ({ x: -0.4 * L.ow, y: L.oh / 2 - 0.5 * L.ow, w: 0.26 * L.ow, h: 0.42 * L.ow })
+
+function fridgeLive(ctx: CanvasRenderingContext2D, L: Layout, s: { tap: number }) {
+  const r = labelRect(L)
+  ctx.save()
+  ctx.translate(L.cx + r.x, L.cy + r.y + r.h)
+  // tapped: the corner lifts 2 degrees and drops back
+  const lift = s.tap >= 0 && s.tap < 0.3 ? Math.sin((Math.PI * s.tap) / 0.3) : 0
+  if (lift) {
+    ctx.fillStyle = `rgba(0,0,0,${0.18 * lift})`
+    ctx.fillRect(1.5, -r.h + 1.5, r.w, r.h)
+  }
+  ctx.rotate((-2 * Math.PI * lift) / 180)
+  ctx.translate(0, -r.h)
+  ctx.fillStyle = '#F7F7F3'
+  ctx.fillRect(0, 0, r.w, r.h)
+  ctx.strokeStyle = '#2A2A2A'
+  ctx.lineWidth = 0.8
+  ctx.strokeRect(0.4, 0.4, r.w - 0.8, r.h - 0.8)
+  ctx.fillStyle = '#2A2A2A'
+  ctx.fillRect(0, 0, r.w, 0.12 * r.h)
+  // seven arrow bars, green to red, and a big 1
+  const cols = ['#139A43', '#56B13D', '#B9D531', '#FCEB1C', '#F8B51A', '#EE6E1F', '#E2231A']
+  const bh = 0.06 * r.h
+  for (let i = 0; i < 7; i++) {
+    const y = 0.17 * r.h + i * bh * 1.25
+    const bw = (0.3 + i * 0.06) * r.w
+    ctx.fillStyle = cols[i]
+    ctx.beginPath()
+    ctx.moveTo(0.08 * r.w, y)
+    ctx.lineTo(0.08 * r.w + bw, y)
+    ctx.lineTo(0.08 * r.w + bw + bh / 2, y + bh / 2)
+    ctx.lineTo(0.08 * r.w + bw, y + bh)
+    ctx.lineTo(0.08 * r.w, y + bh)
+    ctx.fill()
+  }
+  ctx.fillStyle = '#139A43'
+  ctx.beginPath()
+  ctx.moveTo(r.w, 0.17 * r.h)
+  ctx.lineTo(0.8 * r.w, 0.17 * r.h)
+  ctx.lineTo(0.74 * r.w, 0.17 * r.h + 0.06 * r.w)
+  ctx.lineTo(0.8 * r.w, 0.17 * r.h + 0.12 * r.w)
+  ctx.lineTo(r.w, 0.17 * r.h + 0.12 * r.w)
+  ctx.fill()
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font = `800 ${0.11 * r.w}px system-ui, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('1', 0.89 * r.w, 0.17 * r.h + 0.06 * r.w)
+  ctx.fillStyle = 'rgba(40,40,40,0.35)'
+  for (let i = 0; i < 4; i++) ctx.fillRect(0.08 * r.w, 0.74 * r.h + i * 0.055 * r.h, (i % 2 ? 0.6 : 0.84) * r.w, 0.022 * r.h)
+  ctx.restore()
+}
+
+function fridgePrint(ctx: CanvasRenderingContext2D, L: Layout) {
+  const { fw, fh, F } = L
+  // blue bands top and bottom, a diagonal arrow pattern, the remove line twice, three feature icons
+  ctx.fillStyle = 'rgba(44,111,196,0.85)'
+  ctx.fillRect(0, 0.04 * fh, fw, 0.035 * fh)
+  ctx.fillRect(0, fh - 0.075 * fh, fw, 0.035 * fh)
+  ctx.strokeStyle = 'rgba(44,111,196,0.16)'
+  ctx.lineWidth = 0.035 * F
+  ctx.lineCap = 'butt'
+  for (let k = -fh; k < fw + fh; k += 0.32 * F) {
+    ctx.beginPath()
+    ctx.moveTo(k, 0.12 * fh)
+    ctx.lineTo(k + 0.1 * F, 0.12 * fh + 0.1 * F)
+    ctx.moveTo(k + 0.1 * F, 0.12 * fh + 0.1 * F)
+    ctx.lineTo(k + 0.1 * F, 0.12 * fh + 0.03 * F)
+    ctx.moveTo(k + 0.1 * F, 0.12 * fh + 0.1 * F)
+    ctx.lineTo(k + 0.03 * F, 0.12 * fh + 0.1 * F)
+    ctx.stroke()
+  }
+  ctx.fillStyle = BLUE
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const txt = tx('peel_remove')
+  ctx.font = `800 ${Math.min(0.085 * F, (1.7 * fw) / Math.max(6, txt.length))}px system-ui, sans-serif`
+  ctx.fillText(txt, fw / 2, 0.36 * fh)
+  ctx.fillText(txt, fw / 2, 0.7 * fh)
+  ctx.strokeStyle = BLUE
+  ctx.lineWidth = 0.014 * F
+  ctx.lineCap = 'round'
+  const iy = 0.53 * fh
+  const s = 0.07 * F
+  // snowflake
+  ctx.save()
+  ctx.translate(fw * 0.28, iy)
+  for (let i = 0; i < 3; i++) {
+    ctx.rotate(Math.PI / 3)
+    ctx.beginPath()
+    ctx.moveTo(-s, 0)
+    ctx.lineTo(s, 0)
+    ctx.stroke()
+  }
+  ctx.restore()
+  // leaf
+  ctx.beginPath()
+  ctx.moveTo(fw * 0.5 - s, iy + s)
+  ctx.quadraticCurveTo(fw * 0.5 - s, iy - s, fw * 0.5 + s, iy - s)
+  ctx.quadraticCurveTo(fw * 0.5 + s, iy + s, fw * 0.5 - s, iy + s)
+  ctx.lineTo(fw * 0.5 + 0.3 * s, iy - 0.3 * s)
+  ctx.stroke()
+  // droplet
+  ctx.beginPath()
+  ctx.moveTo(fw * 0.72, iy - s)
+  ctx.bezierCurveTo(fw * 0.72 + s, iy, fw * 0.72 + 0.8 * s, iy + s, fw * 0.72, iy + s)
+  ctx.bezierCurveTo(fw * 0.72 - 0.8 * s, iy + s, fw * 0.72 - s, iy, fw * 0.72, iy - s)
+  ctx.stroke()
+}
+
+// ------------------------------------- laptop: the lid -------------------------------------
+
+function laptopGround(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) {
+  const { w, h, dpr } = L
+  // white foam: a fine stipple instead of pulp fibres
+  ctx.fillStyle = '#F2F2F0'
+  ctx.fillRect(0, 0, w, h)
+  drawNoise(ctx, 0, 0, w, h, 40, rnd, '150,150,145', 0.05)
+  const n = Math.round(((w * h) / 1e4) * 60)
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = rnd() < 0.5 ? 'rgba(170,170,165,0.22)' : 'rgba(255,255,255,0.8)'
+    ctx.beginPath()
+    ctx.arc(rnd() * w, rnd() * h, (0.5 + rnd() * 0.9) / dpr + 0.3, 0, TAU)
+    ctx.fill()
+  }
+  groundLight(ctx, L, 0.3, 0.12)
+}
+
+function laptopBake(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) {
+  const LW = L.ow
+  const LH = L.oh
+  ctx.save()
+  ctx.translate(L.cx, L.cy)
+  ctx.beginPath()
+  objectPath(ctx, L)
+  ctx.fillStyle = '#8E9399'
+  ctx.fill()
+  ctx.save()
+  ctx.clip()
+  // bead-blasted: an isotropic fine grain, no hairlines, one very broad soft highlight
+  drawNoise(ctx, -LW / 2, -LH / 2, LW, LH, 2, rnd, '255,255,255', 0.05)
+  drawNoise(ctx, -LW / 2, -LH / 2, LW, LH, 2, rnd, '40,44,50', 0.05)
+  ctx.fillStyle = grad(ctx, -0.25 * LW, -0.3 * LH, 0, 0, [0, 'rgba(255,255,255,0.13)', 0.7, 'rgba(255,255,255,0)', 1, 'rgba(20,24,30,0.08)'], 0.9 * LH)
+  ctx.fillRect(-LW / 2, -LH / 2, LW, LH)
+  // the hinge along the left edge
+  const hw = 0.035 * LW
+  ctx.fillStyle = grad(ctx, -LW / 2, 0, -LW / 2 + hw, 0, [0, '#5E636A', 0.45, '#A4A9AF', 1, '#7C8187'])
+  ctx.fillRect(-LW / 2, -LH / 2, hw, LH)
+  ctx.fillStyle = 'rgba(30,34,40,0.35)'
+  ctx.fillRect(-LW / 2 + hw, -LH / 2, 1, LH)
+  ctx.restore()
+  // the chamfered edge catches the light
+  ctx.strokeStyle = 'rgba(235,238,242,0.7)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  rrPath(ctx, -LW / 2 + 0.5, -LH / 2 + 0.5, LW - 1, LH - 1, L.orad)
+  ctx.stroke()
+  // a generic emblem: a polished ring, mirror finish
+  const R = 0.06 * LW
+  ctx.strokeStyle = grad(ctx, -R, -R, R, R, [0, '#E4E7EA', 0.35, '#6C7178', 0.55, '#D2D6DA', 1, '#5A5F66'])
+  ctx.lineWidth = 0.018 * LW
+  ctx.beginPath()
+  ctx.arc(0, 0, R, 0, TAU)
+  ctx.stroke()
+  ctx.restore()
+}
+
+// ------------------------------------- cabinet: the kitchen cabinet door -------------------------------------
+
+function cabinetGround(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number) {
+  const { w, h, cx, cy } = L
+  const CW = L.ow
+  const CH = L.oh
+  const gap = 0.012 * CW
+  // the carcass in the gaps, the neighbouring doors' edges, a strip of white tile below
+  ctx.fillStyle = '#B9AE9C'
+  ctx.fillRect(0, 0, w, h)
+  const top = cy - CH / 2
+  const bot = cy + CH / 2
+  for (const x of [cx - CW / 2 - gap - CW, cx + CW / 2 + gap]) {
+    ctx.fillStyle = '#EAE1D0'
+    ctx.beginPath()
+    rrPath(ctx, x, top, CW, CH, 0.01 * CW)
+    ctx.fill()
+  }
+  ctx.fillStyle = '#E9E0CF'
+  ctx.fillRect(0, 0, w, top - gap)
+  // the underside, then the tiles
+  const ty = bot + 0.06 * CW
+  ctx.fillStyle = '#8F8574'
+  ctx.fillRect(0, bot + gap, w, ty - bot - gap)
+  ctx.fillStyle = '#F7F6F2'
+  ctx.fillRect(0, ty, w, h - ty)
+  const tile = 0.2 * CW
+  ctx.fillStyle = 'rgba(160,150,135,0.45)'
+  for (let y = ty + tile / 2; y < h; y += tile / 2) ctx.fillRect(0, y, w, 1.2)
+  for (let y = ty, r = 0; y < h; y += tile / 2, r++) for (let x = (r % 2) * (tile / 2); x < w; x += tile) ctx.fillRect(x, y, 1.2, tile / 2)
+  ctx.fillStyle = grad(ctx, 0, ty, 0, ty + 0.12 * CW, [0, 'rgba(60,45,25,0.3)', 1, 'rgba(60,45,25,0)'])
+  ctx.fillRect(0, ty, w, 0.12 * CW)
+  drawNoise(ctx, 0, 0, w, ty, 60, rnd, '140,120,90', 0.05)
+  // warm kitchen light
+  ctx.fillStyle = grad(ctx, w * 0.25, h * 0.05, 0, 0, [0, 'rgba(255,236,200,0.28)', 0.6, 'rgba(255,236,200,0)', 1, 'rgba(60,40,20,0.16)'], Math.hypot(w, h))
+  ctx.fillRect(0, 0, w, h)
+}
+
+function cabinetBake(ctx: CanvasRenderingContext2D, L: Layout) {
+  const CW = L.ow
+  const CH = L.oh
+  ctx.save()
+  ctx.translate(L.cx, L.cy)
+  ctx.beginPath()
+  objectPath(ctx, L)
+  ctx.fillStyle = grad(ctx, -CW / 2, -CH / 2, CW / 2, CH / 2, [0, '#F8F2E6', 0.5, '#F3EBDD', 1, '#E9DFCD'])
+  ctx.fill()
+  ctx.save()
+  ctx.clip()
+  // high gloss: a sharp reflection of a window, a softer one of a ceiling lamp
+  ctx.save()
+  ctx.transform(1, 0, -0.18, 1, 0, 0)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  const wx = -0.3 * CW
+  const wy = -0.36 * CH
+  const ww = 0.3 * CW
+  const wh = 0.36 * CH
+  ctx.fillRect(wx, wy, ww, wh)
+  ctx.fillStyle = 'rgba(205,190,165,0.55)'
+  ctx.fillRect(wx + ww / 2 - 1.5, wy, 3, wh)
+  ctx.fillRect(wx, wy + wh * 0.45, ww, 3)
+  ctx.restore()
+  ctx.fillStyle = grad(ctx, 0.22 * CW, -0.42 * CH, 0, 0, [0, 'rgba(255,250,235,0.7)', 1, 'rgba(255,250,235,0)'], 0.2 * CW)
+  ctx.fillRect(-CW / 2, -CH / 2, CW, CH)
+  ctx.restore()
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  rrPath(ctx, -CW / 2 + 0.5, -CH / 2 + 0.5, CW - 1, CH - 1, L.orad)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** The chrome bar handle, lower left: drawn above the film (the film was cut around it). */
+function cabinetHandle(ctx: CanvasRenderingContext2D, L: Layout) {
+  const CW = L.ow
+  const CH = L.oh
+  const x = -CW / 2 + 0.07 * CW
+  const y0 = CH / 2 - 0.42 * CW
+  const y1 = CH / 2 - 0.08 * CW
+  const bw = 0.032 * CW
+  ctx.save()
+  ctx.translate(L.cx, L.cy)
+  ctx.fillStyle = 'rgba(40,30,20,0.25)'
+  ctx.beginPath()
+  rrPath(ctx, x + 3, y0 + 5, bw, y1 - y0, bw / 2)
+  ctx.fill()
+  ctx.fillStyle = metal(ctx, x, 0, x + bw, 0)
+  for (const y of [y0 + 0.04 * CW, y1 - 0.06 * CW]) ctx.fillRect(x + bw * 0.25, y, bw * 0.5, 0.02 * CW)
+  ctx.beginPath()
+  rrPath(ctx, x, y0, bw, y1 - y0, bw / 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+function cabinetPrint(ctx: CanvasRenderingContext2D, L: Layout) {
+  const { fw, fh, F } = L
+  // a greasy band near the handle (lower left), dust along the top edge
+  const gx = 0.1 * fw
+  const gg = ctx.createRadialGradient(gx, fh * 0.78, 0, gx, fh * 0.78, 0.45 * F)
+  gg.addColorStop(0, 'rgba(190,150,70,0.20)')
+  gg.addColorStop(1, 'rgba(190,150,70,0)')
+  ctx.fillStyle = gg
+  ctx.fillRect(0, fh * 0.5, fw * 0.6, fh * 0.5)
+  let a = 4241
+  const r = () => ((a = (a * 16807) % 2147483647) / 2147483647)
+  for (let i = 0; i < 90; i++) {
+    ctx.fillStyle = `rgba(150,130,100,${0.25 + 0.35 * r()})`
+    ctx.beginPath()
+    ctx.arc(r() * fw, r() ** 2 * 0.06 * fh, 0.4 + r() * 0.8, 0, TAU)
+    ctx.fill()
+  }
+  // the top-left corner has curled up by itself over three years
+  const s = 0.11 * F
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.beginPath()
+  ctx.moveTo(-2, -2)
+  ctx.lineTo(s, -2)
+  ctx.lineTo(-2, s)
+  ctx.fill()
+  ctx.restore()
+  ctx.fillStyle = 'rgba(40,30,15,0.12)'
+  ctx.beginPath()
+  ctx.moveTo(s, 0)
+  ctx.quadraticCurveTo(0.75 * s, 0.75 * s + 3, 0, s)
+  ctx.lineTo(0.62 * s + 3, 0.62 * s + 4)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(232,212,150,0.6)'
+  ctx.beginPath()
+  ctx.moveTo(s, 0)
+  ctx.quadraticCurveTo(0.7 * s, 0.7 * s, 0, s)
+  ctx.lineTo(0.58 * s, 0.58 * s)
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+  ctx.lineWidth = 0.8
+  ctx.stroke()
+}
+
 // ------------------------------------- what is left after the peel -------------------------------------
 
 /** The microwave's torn edge along the trim: a noisy line at sx0 (0.006 F), with the corner triangle once it tore. */
@@ -1348,8 +1802,133 @@ const MICRO: ObjDef = {
   afterOnce: true,
 }
 
-/** Registers the four objects and their text. */
+const FRIDGE: ObjDef = {
+  ix: 7,
+  salt: 59,
+  size(w, h) {
+    const FW = Math.min(0.62 * w, (0.8 * h) / 2, 380)
+    return { ow: FW, oh: 2 * FW, orad: 0.02 * FW, rot: 0 }
+  },
+  film(ow, oh) {
+    const i = 0.01 * ow
+    return { fw: ow - 2 * i, fh: oh - 2 * i, frad: 0.012 * ow }
+  },
+  corner: 'tl',
+  tab: 'white-arrow',
+  tMin: 30,
+  // thick and nearly opaque: you do not know the door's colour until it is off
+  tint: 'rgba(240,244,248,0.85)',
+  flapTint: 'rgba(236,240,246,0.7)',
+  wadTint: '240,244,248',
+  wadA: 0.8,
+  wadScale: 2,
+  wadBand: 'rgba(44,111,196,0.6)',
+  shakes: 2,
+  haze: 0.03,
+  glare: 'band1',
+  scratches: 14,
+  print: fridgePrint,
+  bubbles: [4, 6, 0.03, 0.05],
+  rim: ['70,90,120', 0.14],
+  adhesion: 1.3,
+  curl: 1.5,
+  slip: 1.5,
+  sound: { pitch: 0.7, gain: 1.35, crinkle: 0, rateCap: 90 },
+  ground: fridgeGround,
+  well: false,
+  bakeBase: fridgeBake,
+  live: fridgeLive,
+  tap: {
+    hit: (L, x, y) => {
+      const r = labelRect(L)
+      const lx = x - L.cx
+      const ly = y - L.cy
+      return lx > r.x - 8 && lx < r.x + r.w + 8 && ly > r.y - 8 && ly < r.y + r.h + 8
+    },
+    line: 'peel_fridge_label',
+    what: 'label',
+  },
+  afterLine: () => 'peel_fridge_after',
+  afterOnce: true,
+}
+
+const LAPTOP: ObjDef = {
+  ix: 8,
+  salt: 61,
+  size(w, h) {
+    const LW = Math.min(0.8 * w, (0.7 * h * 2) / 3, 440)
+    return { ow: LW, oh: 1.5 * LW, orad: 0.045 * LW, rot: 0 }
+  },
+  film(ow, oh, orad) {
+    const i = 0.01 * ow
+    return { fw: ow - 2 * i, fh: oh - 2 * i, frad: orad - i }
+  },
+  corner: 'br',
+  tab: 'red-arrow',
+  tMin: 0,
+  tint: 'rgba(255,255,255,0.08)',
+  flapTint: 'rgba(225,232,245,0.22)',
+  wadTint: '235,240,250',
+  wadA: 0.3,
+  haze: 0.04,
+  // the film is glossier than the metal under it
+  glare: (_ctx, L, band) => {
+    band(0.05 * L.fh, 0.42 * L.fw, 0.22)
+    band(0.52 * L.fh, 0.3 * L.fw, 0.14)
+  },
+  scratches: 18,
+  bubbles: [5, 8, 0.02, 0.03],
+  rim: ['0,0,0', 0.14],
+  adhesion: 1,
+  curl: 1,
+  sound: { pitch: 0.9, gain: 1, crinkle: 0, rateCap: 120 },
+  ground: laptopGround,
+  well: true,
+  bakeBase: laptopBake,
+  gleam: [0.18, 0.3, 0.9],
+  afterLine: () => 'peel_laptop_after',
+  afterOnce: true,
+}
+
+const CABINET: ObjDef = {
+  ix: 9,
+  salt: 67,
+  size(w, h) {
+    const CW = Math.min(0.7 * w, (0.74 * h) / 1.5, 420)
+    return { ow: CW, oh: 1.5 * CW, orad: 0.01 * CW, rot: 0 }
+  },
+  film(ow, oh) {
+    const i = 0.01 * ow
+    return { fw: ow - 2 * i, fh: oh - 2 * i, frad: 0.004 * ow }
+  },
+  corner: 'br',
+  tab: 'dogear',
+  tMin: 0,
+  tint: 'rgba(255,255,255,0.12)',
+  flapTint: 'rgba(232,214,160,0.4)',
+  wadTint: '236,222,170',
+  wadA: 0.45,
+  haze: 0.08,
+  aged: 0.18,
+  glare: 'crinkle',
+  crinkles: 20,
+  scratches: 80,
+  print: cabinetPrint,
+  bubbles: [3, 5, 0.02, 0.04],
+  rim: ['60,45,20', 0.16],
+  adhesion: 1.1,
+  curl: 1,
+  sound: { pitch: 1.1, gain: 1, crinkle: 1, rateCap: 120 },
+  brittle: [0.32, 0.68],
+  ground: cabinetGround,
+  well: false,
+  bakeBase: cabinetBake,
+  over: cabinetHandle,
+  chat: { who: 'peel_mum', warn: 'peel_cabinet_mum', done: 'peel_mum_done', ga: 'mum', atGrab: true },
+}
+
+/** Registers the seven objects and their text. */
 export function install() {
   addStrings(STR[locale])
-  register({ cam: CAM, watch: WATCH, car: CAR, micro: MICRO })
+  register({ cam: CAM, watch: WATCH, car: CAR, micro: MICRO, fridge: FRIDGE, laptop: LAPTOP, cabinet: CABINET })
 }

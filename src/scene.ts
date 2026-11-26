@@ -255,7 +255,7 @@ function filmBase(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number, b
   drawNoise(ctx, 0, 0, fw, fh, 90, rnd, '255,255,255', L.layer2 ? 0.03 : D.haze)
   if (!L.layer2) drawNoise(ctx, 0, 0, fw, fh, 26, rnd, '255,255,255', 0.025)
   if (D.aged) {
-    ctx.fillStyle = 'rgba(217,194,122,0.10)'
+    ctx.fillStyle = D.aged === true ? 'rgba(217,194,122,0.10)' : `rgba(217,194,122,${D.aged})`
     ctx.fillRect(0, 0, fw, fh)
     drawNoise(ctx, 0, 0, fw, fh, 50, rnd, '200,170,90', 0.08)
   }
@@ -280,7 +280,7 @@ function filmBase(ctx: CanvasRenderingContext2D, L: Layout, rnd: () => number, b
     } else {
       // crinkle glare: short bright creases of loose wrap
       ctx.lineCap = 'round'
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0, n = D.crinkles ?? 40; i < n; i++) {
         const x = rnd() * fw
         const y = rnd() * fh
         const l = 10 + rnd() * 30

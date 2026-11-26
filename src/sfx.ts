@@ -144,6 +144,14 @@ class Sfx {
     this.sine(t, 140, 0.04, 0.12 * gain)
   }
 
+  /** A brittle film snapping: a soft tick and a 12 ms 2.4 kHz blip. */
+  crack(v: Sound) {
+    const t = this.now
+    this.peelTick(t, 0.6, v, 0.2)
+    this.burst(t, 0.012, 3000, 1.5, 0.12, 'highpass')
+    this.sine(t, 2400, 0.012, 0.08)
+  }
+
   pat() {
     this.burst(this.now, 0.08, 500, 0.7, 0.1, 'lowpass')
   }

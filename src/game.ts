@@ -1,6 +1,6 @@
 // Peel Off: game loop, input, peel model (stick-slip, zip, fall-back), detach, static cling,
 // object rotation, the 梗 layer, GA events and the dev harness.
-import { type Peel, type V, chord, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
+import { type Peel, type V, K_FLAP, chord, clipHalf, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
 import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rng, rrPath } from './scene'
 import { OBJ, def, isKind } from './objects'
 import { KINDS } from './kit'
@@ -62,8 +62,8 @@ const easeInCubic = (x: number) => x * x * x
 const easeOutCubic = (x: number) => 1 - (1 - x) ** 3
 /** The first lap is today's rotation; then a bag of the newer objects, then bags of everything. */
 const LAP1: Kind[] = ['phone', 'steel', 'remote']
-/** The objects built so far (fridge, laptop and cabinet are in the spec for later). */
-const BUILT = KINDS.slice(0, 7) as readonly Kind[]
+/** The objects built so far: all ten. */
+const BUILT: readonly Kind[] = KINDS
 const popc = (x: number) => {
   let n = 0
   for (; x; x >>>= 1) n += x & 1
@@ -129,6 +129,16 @@ interface Wad {
   stuckAgain: boolean
   off: { t: number; x0: number; y0: number; how: 'shake' | 'tap' | 'auto' } | null
   L: Layout
+  /** Shakes still needed to lose it (the fridge's thick film takes two). */
+  shakes: number
+}
+
+/** A piece of brittle film that snapped off: its outline as it was lifted (screen css px), falling. */
+interface Shard {
+  pts: V[]
+  c: V
+  t: number
+  spin: number
 }
 
 export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
@@ -168,7 +178,15 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     stress: true,
     torn: false,
     flick: false,
+    cut: 0,
   }
+  // the brittle film: where it will snap (peeled fractions), how often it has, the grab offset after a snap
+  let breaks: number[] = []
+  let snaps = 0
+  let gOff = 0
+  let snapX = 0
+  let shards: Shard[] = []
+  let tapT = -1
   let restM = 0
   let marker: V | null = null
   const showMarker = DEV && Q.has('marker')
@@ -238,6 +256,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     film.on = true
     film.stress = true
     film.bloom = 0
+    film.cut = 0
+    snaps = 0
+    gOff = 0
+    tapT = -1
+    breaks = (def(L.kind).brittle ?? []).map((b) => b + (Math.random() - 0.5) * 0.1)
     restM = def(L.kind).tab === 'dogear' ? liftM(film.peel.u) : 0 // the remote's wrap has a dog-eared corner
     film.peel.m = restM
     uTarget = film.peel.u
@@ -285,7 +308,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   /** Grab lift: 0.5 T of film off the surface, measured from the rounded corner's apex. */
   function liftM(u: V) {
-    return apexX(u) + 0.5 * L.T
+    // after a snap the fold starts again from the ragged edge
+    return film.cut ? film.cut + 0.5 * L.T : apexX(u) + 0.5 * L.T
   }
   /** The thing to take hold of: the tab's centre, or the remote's dog-eared corner. */
   function grabPoint(): V {
@@ -333,6 +357,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
 
   // ---------- input: one pointer ----------
   function aim(p: V) {
+    if (film.cut) return // u is kept after a snap: the part that broke off was cut square to it
     const R = uRange(L)
     const d: V = [p[0] - L.A[0], p[1] - L.A[1]]
     let a = R.diag
@@ -341,6 +366,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   function targetM(pe: Peel) {
     const P = (ptr[0] - L.A[0]) * pe.u[0] + (ptr[1] - L.A[1]) * pe.u[1]
+    // after a snap the ragged edge (not A) is what the finger holds, from wherever it took hold
+    if (film.cut) return Math.max(liftM(pe.u), mStar0(P - gOff, pe.r, film.cut))
     return Math.max(liftM(pe.u), L.round ? mStar0(P, pe.r, L.m0) : mStar(P, pe.r))
   }
   const busy = (s = 0.6) => (busyUntil = Math.max(busyUntil, T + s))
@@ -379,6 +406,18 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
         draw()
         return
       }
+      // the fridge's energy label: its corner lifts and drops; it stays
+      if (D.tap && gleamT >= 0 && (tapT < 0 || T - tapT > 0.5) && D.tap.hit(objL, e.clientX, e.clientY)) {
+        if (tapT < 0) {
+          ev.onLine(tx(D.tap.line), 'line')
+          ga('extra_tap', { what: D.tap.what })
+        }
+        tapT = T
+        sfx.flick()
+        nextAt = Math.max(nextAt, T + 1.6)
+        busy()
+        return
+      }
       if (L.sx0 && p[0] > -12 && p[0] < L.sx0 + 12 && p[1] > -6 && p[1] < L.fh + 6) {
         flickT = T
         ev.onLine(tx('peel_micro_after'), 'line')
@@ -392,7 +431,22 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     }
     const g = grabPoint()
     const R = Math.max(2.2 * L.T, 32)
-    const near = Math.hypot(p[0] - g[0], p[1] - g[1]) < R || Math.hypot(p[0] - L.A[0], p[1] - L.A[1]) < R
+    let near = Math.hypot(p[0] - g[0], p[1] - g[1]) < R || Math.hypot(p[0] - L.A[0], p[1] - L.A[1]) < R
+    if (film.cut) {
+      // after a snap: anywhere along the ragged edge, within 2.2 T of it on the bare side, and on the film
+      // itself up to where the finger was when it snapped (it just presses again where it was)
+      const pe = film.peel
+      const X = (p[0] - L.A[0]) * pe.u[0] + (p[1] - L.A[1]) * pe.u[1]
+      const Y = (p[0] - L.A[0]) * -pe.u[1] + (p[1] - L.A[1]) * pe.u[0]
+      const c = chord(L.polyDense, L.A, pe.u, film.cut + 1)
+      const reach = Math.max(R, snapX - film.cut + L.T)
+      near = !!c && X > film.cut - R && X < film.cut + reach && Y > c[0] - L.T && Y < c[1] + L.T
+      if (near) {
+        // hold the edge from here: no jump, the edge follows the finger from where it took hold
+        const P0 = (1 + K_FLAP) * (film.cut + 0.5 * L.T) - K_FLAP * (film.cut + Math.PI * pe.r)
+        gOff = Math.max(0, X - P0)
+      }
+    }
     if (!near) {
       // every touch answers: the tab flicks
       tabAnim = { t: 0, dur: 0.12 }
@@ -411,6 +465,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     aim(p)
     film.peel.u = uTarget
     if (filmT0 < 0) filmT0 = T
+    const ch = def(L.kind).chat
+    if (ch?.atGrab && !mumWarned) {
+      mumWarned = true
+      ev.onLine(tx(ch.warn), 'mum', tx(ch.who))
+      ga(ch.ga, { stage: 'warn' })
+    }
     // in the same frame: the corner lifts to a small curl, one tick, 8 ms
     film.peel.m = Math.max(film.peel.m, liftM(film.peel.u))
     film.frontSeed = (film.frontSeed * 1103515245 + 12345) >>> 0
@@ -440,7 +500,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     busy(1)
     if (zip || stall) return
     const f = frac()
-    if (f >= 0.7) startZip()
+    if (f >= 0.7 && snaps < breaks.length) snap(f)
+    else if (f >= 0.7) startZip()
     else fallBack(f)
   }
   canvas.addEventListener('pointerdown', onDown)
@@ -462,6 +523,42 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     zip = null
     ev.onLine(tx('peel_micro_stall'), 'line')
     ga('stall', { item: item(), ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000) })
+  }
+
+  /** The brittle film: the lifted part breaks off along the fold line; the rest keeps a ragged edge there. */
+  function snap(f: number) {
+    const pe = film.peel
+    // the broken piece, as it was lifted: the flat part of the flap (the roll straightens as it breaks)
+    const flat = Math.max(pe.m - Math.PI * pe.r, film.cut + 0.02 * L.F)
+    const piece = clipHalf(clipHalf(L.polyDense, L.A, pe.u, flat, true), L.A, pe.u, film.cut, false)
+    if (piece.length > 2) {
+      const pts = piece.map((q) => toScreen(liftPoint(q, pe).p))
+      let cx = 0
+      let cy = 0
+      for (const q of pts) {
+        cx += q[0] / pts.length
+        cy += q[1] / pts.length
+      }
+      shards.push({ pts, c: [cx, cy], t: 0, spin: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2) })
+    }
+    snapX = (ptr[0] - L.A[0]) * pe.u[0] + (ptr[1] - L.A[1]) * pe.u[1]
+    film.cut = pe.m
+    snaps++
+    pe.m = liftM(pe.u)
+    pe.r = 0.035 * L.F * def(L.kind).curl
+    pe.stretch = 1
+    restM = pe.m
+    uTarget = pe.u
+    zip = null
+    fall = null
+    if (grabbed) canvas.releasePointerCapture?.(pid)
+    grabbed = false
+    pid = -1
+    sfx.crack(variant())
+    haptic(14)
+    if (snaps === 1) ev.onLine(tx('peel_cabinet_snap'), 'line')
+    ga('snap', { item: item(), n: snaps, pct: clamp(Math.floor(f * 100), 0, 100) })
+    busy(1)
   }
 
   /** Film-local y where the fold line meets the sliver's edge (the trim side), or -1. */
@@ -504,7 +601,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       film.wrinkles.push({ a: [c[0] - (Math.cos(wa) * wl) / 2, c[1] - (Math.sin(wa) * wl) / 2], b: [c[0] + (Math.cos(wa) * wl) / 2, c[1] + (Math.sin(wa) * wl) / 2] })
     }
     const ch = def(L.kind).chat
-    if (ch) {
+    if (ch?.good) {
       ev.onLine(tx(ch.good), 'mum', tx(ch.who))
       ga(ch.ga, { stage: 'relaid' })
     }
@@ -529,10 +626,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     act('peel_done')
     today++
     lifetime++
-    if (relaidN === 0) onePulls++
+    // a brittle film never comes off in one pull
+    const one = relaidN === 0 && !breaks.length
+    if (one) onePulls++
     lsSet('peel.day', JSON.stringify({ k: dayKey(), n: today }))
     lsSet('peel.total', String(lifetime))
-    ga('peel_done', { n: sessionN, item: it, ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000), one_pull: relaidN === 0 ? 1 : 0, relaid: relaidN })
+    ga('peel_done', { n: sessionN, item: it, ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000), one_pull: one ? 1 : 0, relaid: relaidN })
     mask |= 1 << KINDS.indexOf(L.kind)
     lsSet('peel.kinds', String(mask))
     seenVisit.add(L.kind)
@@ -549,7 +648,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     if (wad && !wad.off) wadOff('auto')
     const at: V = ptrDown ? ptrS : Qs
     crumple = { x: c[0], y: c[1], rot: 0 }
-    wad = { x: at[0], y: at[1], vx: 0, vy: 0, rot: 0, side: 1, since: T, stuckAgain: false, off: null, L }
+    wad = { x: at[0], y: at[1], vx: 0, vy: 0, rot: 0, side: 1, since: T, stuckAgain: false, off: null, L, shakes: def(L.kind).shakes ?? 1 }
     ptrS = at
     // the second layer: second phone of a session, then 1 phone in 3
     layer2At = -1
@@ -706,7 +805,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     }
     if (isShake()) {
       moves.length = 0
-      if (!W.stuckAgain && Math.random() < 0.25) {
+      if (W.shakes > 1) {
+        // a heavy wad: the first shake only swings it
+        W.shakes--
+        W.vx += W.side * 900
+        haptic(10)
+      } else if (!W.stuckAgain && Math.random() < 0.25) {
         // it jumps to the other side of the pointer instead, and stays
         W.stuckAgain = true
         W.side = -W.side
@@ -764,7 +868,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       const uy = pe.u[1] + (uTarget[1] - pe.u[1]) * k
       const l = Math.hypot(ux, uy)
       pe.u = [ux / l, uy / l]
-      const mt = Math.min(targetM(pe), farX(L.poly40, L.A, pe.u) + Math.PI * pe.r)
+      let mt = Math.min(targetM(pe), farX(L.poly40, L.A, pe.u) + Math.PI * pe.r)
+      // a brittle film: the front cannot run past the next break point in one frame
+      const mBreak = snaps < breaks.length ? mForFraction(L.poly40, L.filmArea, L.A, pe.u, breaks[snaps]) : Infinity
+      const pulledPast = mt > mBreak
+      if (pulledPast) mt = mBreak
       const m0 = pe.m
       // stick-slip: the front only moves when the tension beats the local adhesion
       const F = L.F
@@ -781,8 +889,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       let steps = 0
       const start = sfx.now
       const adhesion = def(L.kind).adhesion
+      const slip = def(L.kind).slip ?? 1
       while (tau > 0.012 * adh() * adhesion && steps < 12) {
-        pe.m += Math.min(Math.max(0.006 * F, 0.55 * tau * F), mt - pe.m)
+        pe.m += Math.min(Math.max(0.006 * F * slip, 0.55 * tau * F), mt - pe.m)
         steps++
         tau = Math.max(0, (mt - pe.m) / F)
       }
@@ -815,7 +924,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       // zip: far enough and past the edge, or most of it off
       const d = Math.hypot(Math.max(0, -ptr[0], ptr[0] - L.fw), Math.max(0, -ptr[1], ptr[1] - L.fh))
       checkStall()
-      if (!stall && ((f >= 0.7 && d > 0.3 * L.T) || f >= (def(L.kind).zip?.[0] ?? 0.8))) startZip()
+      if (pulledPast && pe.m >= mBreak - 0.03 * F) snap(f)
+      else if (!stall && snaps >= breaks.length && ((f >= 0.7 && d > 0.3 * L.T) || f >= (def(L.kind).zip?.[0] ?? 0.8))) startZip()
       busy()
     } else if (zip) {
       zip.t += dt
@@ -853,6 +963,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       frontSpeed *= 0.8
     }
     stepWad(dt)
+    if (shards.length) {
+      for (const s of shards) s.t += dt
+      shards = shards.filter((s) => s.t < 0.45)
+      busy()
+    }
     film.flick = flickT >= 0 && T - flickT < 0.08
     if (afterAt >= 0 && T >= afterAt) {
       afterAt = -1
@@ -898,10 +1013,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     ctx.drawImage(BB.base, 0, 0)
     ctx.setTransform(stage.dpr, 0, 0, stage.dpr, ox * stage.dpr, 0)
     const now = shotDate ?? new Date()
-    def(LL.kind).live?.(ctx, LL, { date: now, frozen: !!shotDate, gleam: gleamT >= 0 ? T - gleamT : -1, on: film.on, ms: performance.now() })
+    def(LL.kind).live?.(ctx, LL, { date: now, frozen: !!shotDate, gleam: gleamT >= 0 ? T - gleamT : -1, on: film.on, ms: performance.now(), tap: tapT >= 0 ? T - tapT : -1 })
     if (withFilm) {
-      // gleam: a diagonal band sweeps the clean surface 120 to 820 ms after detach
-      if (gleamT >= 0 && T - gleamT > 0.12 && T - gleamT < 0.82) drawGleam(LL, (T - gleamT - 0.12) / 0.7)
+      // gleam: a diagonal band sweeps the clean surface 120 to 820 ms after detach (the laptop: a slow satin sheen)
+      const G = def(LL.kind).gleam
+      const gd = G ? G[2] : 0.7
+      if (gleamT >= 0 && T - gleamT > 0.12 && T - gleamT < (G ? 0.12 + gd : 0.82)) drawGleam(LL, (T - gleamT - 0.12) / gd, G)
       if (gleamT >= 0 && T - gleamT >= 0.12 && T - gleamT - dtLast < 0.12) sfx.bell()
       drawFilm(ctx, L, BB, film, shadowCv)
     }
@@ -911,7 +1028,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   let dtLast = 1 / 60
 
-  function drawGleam(LL: Layout, k: number) {
+  function drawGleam(LL: Layout, k: number, G?: [number, number, number]) {
     const e = 0.5 - 0.5 * Math.cos(Math.PI * k)
     ctx.save()
     ctx.translate(LL.cx, LL.cy)
@@ -921,14 +1038,38 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     ctx.clip()
     const span = LL.ow + LL.oh
     const c = -span / 2 + e * span
-    const w = 0.3 * LL.F
+    const w = (G ? G[1] : 0.3) * LL.F
     const g = ctx.createLinearGradient((c - w) * 0.6, (c - w) * 0.8, (c + w) * 0.6, (c + w) * 0.8)
-    const a = 0.38 * Math.sin(Math.PI * k)
+    const a = (G ? G[0] : 0.38) * Math.sin(Math.PI * k)
     g.addColorStop(0, 'rgba(255,255,255,0)')
     g.addColorStop(0.5, `rgba(255,255,255,${a.toFixed(3)})`)
     g.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = g
     ctx.fillRect(-LL.ow, -LL.oh, LL.ow * 2, LL.oh * 2)
+    ctx.restore()
+  }
+
+  /** A snapped-off piece: flat, aged film, dropping off the bottom of the screen in 450 ms, turning. */
+  function drawShard(s: Shard) {
+    const k = s.t / 0.45
+    const dy = (stage.h + 0.2 * stage.h - s.c[1]) * k * k
+    ctx.save()
+    ctx.translate(s.c[0] + 0.15 * L.F * k * Math.sign(s.spin), s.c[1] + dy)
+    ctx.rotate(s.spin * s.t)
+    ctx.scale(1 - 0.25 * Math.abs(Math.sin(s.t * 9)), 1)
+    ctx.beginPath()
+    s.pts.forEach((q, i) => (i ? ctx.lineTo(q[0] - s.c[0], q[1] - s.c[1]) : ctx.moveTo(q[0] - s.c[0], q[1] - s.c[1])))
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(15,18,25,0.10)'
+    ctx.save()
+    ctx.translate(4, 6)
+    ctx.fill()
+    ctx.restore()
+    ctx.fillStyle = 'rgba(236,222,170,0.62)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'
+    ctx.lineWidth = 0.9
+    ctx.stroke()
     ctx.restore()
   }
 
@@ -977,12 +1118,14 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       }
     } else drawObject(objL, B, 0, true)
     ctx.setTransform(stage.dpr, 0, 0, stage.dpr, 0, 0)
+    for (const s of shards) drawShard(s)
+    const wadS = wad ? 1.3 * wad.L.T * (def(wad.L.kind).wadScale ?? 1) : 0
     if (crumple && wad) {
       // the sheet swings behind the pointer and crumples into a wad (ease-in cubic, 220 ms)
       const k = easeInCubic(clamp((T - detachT) / 0.22, 0, 1))
       const x = crumple.x + (wad.x - crumple.x) * k
       const y = crumple.y + (wad.y - crumple.y) * k
-      const s = 1 + ((1.3 * wad.L.T) / Math.max(wad.L.fw, wad.L.fh) - 1) * k
+      const s = 1 + (wadS / Math.max(wad.L.fw, wad.L.fh) - 1) * k
       ctx.save()
       ctx.translate(x, y)
       ctx.rotate(wad.L.rot + k * 1.4)
@@ -992,8 +1135,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       // the film texture of the film that just came off is still referenced by the wad's layout
       ctx.drawImage(tex.back, -wad.L.fw / 2 - tex.pad, -wad.L.fh / 2 - tex.pad, wad.L.fw + 2 * tex.pad, wad.L.fh + 2 * tex.pad)
       ctx.restore()
-      drawWad(ctx, wad.L, wad.x, wad.y, 1.3 * wad.L.T, wad.rot, SEED + sessionN, k)
-    } else if (wad) drawWad(ctx, wad.L, wad.x, wad.y, 1.3 * wad.L.T, wad.rot, SEED + sessionN)
+      drawWad(ctx, wad.L, wad.x, wad.y, wadS, wad.rot, SEED + sessionN, k)
+    } else if (wad) drawWad(ctx, wad.L, wad.x, wad.y, wadS, wad.rot, SEED + sessionN)
     if (marker) drawMarker(ctx, marker[0], marker[1], L.T)
     if (pendingStamp) {
       inputToDrawMs = performance.now() - pendingStamp
@@ -1095,6 +1238,13 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       // the microwave at its stall: 90% peeled, the flap stretched from the tucked corner
       setFraction(0.9)
       pe.stretch = 1.25
+    } else if (name === 'snap') {
+      // the cabinet just after its first snap: the piece falling, the ragged edge taken up again
+      setFraction(0.34)
+      snap(0.34)
+      shards[0] && (shards[0].t = 0.1)
+      pe.m = film.cut + 0.16 * L.F
+      pe.r = 0.04 * L.F
     } else if (name === 'sliver') {
       film.on = false
       film.torn = true
@@ -1109,7 +1259,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       film.on = false
       const p = toScreen([L.fw * 0.78, L.fh * 0.62])
       marker = [p[0] + 0.5 * L.T, p[1] + 0.6 * L.T]
-      wad = { x: p[0] - 0.25 * L.T, y: p[1] - 0.2 * L.T, vx: 0, vy: 0, rot: 0.4, side: 1, since: 0, stuckAgain: false, off: null, L }
+      wad = { x: p[0] - 0.25 * L.T, y: p[1] - 0.2 * L.T, vx: 0, vy: 0, rot: 0.4, side: 1, since: 0, stuckAgain: false, off: null, L, shakes: 1 }
     }
     draw()
     if (name === 'og') drawOgText()
