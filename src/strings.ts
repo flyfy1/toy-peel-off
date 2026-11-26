@@ -2,6 +2,7 @@
 // The text every toy shares (names for the More menu, Share, About) lives in i18n.ts.
 
 const en = {
+  name_peel: "Peel Off",
   peel_tag_remote: "Someone saved you the film on the remote",
   desc_peel: "A new phone in its box, factory film still on. Take the corner tab and pull: the film curls away with a fine crackle and the screen comes out clean. Then a camera, a watch, a car screen, a microwave, the TV remote your mum said to leave alone, and more. A tiny satisfying toy, no sign-up.",
   hint_peel: "Pull the corner tab",
@@ -27,6 +28,7 @@ const en = {
 }
 
 const zhCN: typeof en = {
+  name_peel: "撕膜",
   peel_tag_remote: "有人把遥控器的膜留给你撕",
   desc_peel: "盒子里一台新手机，出厂膜还贴着。捏住角上的小标签往外撕：膜卷起来，细细地沙沙响，底下的屏幕干干净净。接着是摄像头、手表、车机、微波炉、妈妈不让撕的电视遥控器，还有别的。打开即玩的解压小玩具。",
   hint_peel: "捏住角上的小标签，撕",
@@ -52,6 +54,7 @@ const zhCN: typeof en = {
 }
 
 const es: typeof en = {
+  name_peel: "Quita el Plástico",
   peel_tag_remote: "Alguien te ha guardado la lámina del mando",
   desc_peel: "Un móvil nuevo en su caja, con el plástico de fábrica todavía puesto. Coge la pestaña de la esquina y tira: el plástico se enrolla con un crujido fino y la pantalla sale limpia. Luego una cámara, un reloj, la pantalla de un coche, un microondas, el mando de la tele que tu madre dijo que no tocaras, y más. Un juguete pequeño y satisfactorio, sin registro.",
   hint_peel: "Tira de la pestaña de la esquina",
@@ -77,6 +80,7 @@ const es: typeof en = {
 }
 
 const fr: typeof en = {
+  name_peel: "Pelez-Moi Ça",
   peel_tag_remote: "Quelqu’un vous a gardé le film de la télécommande",
   desc_peel: "Un téléphone neuf dans sa boîte, le film d'usine encore dessus. Prenez la languette du coin et tirez : le film s'enroule avec un fin crépitement et l'écran apparaît, net. Puis un appareil photo, une montre, un écran de voiture, un micro-ondes, la télécommande que votre mère vous a dit de laisser emballée, et d'autres. Un petit jouet satisfaisant, sans inscription.",
   hint_peel: "Tirez la languette du coin",
@@ -102,6 +106,7 @@ const fr: typeof en = {
 }
 
 const ja: typeof en = {
+  name_peel: "ペリペリ保護フィルム",
   peel_tag_remote: "リモコンのフィルムをあなたに残してくれた人がいます",
   desc_peel: "箱の中に新品のスマホ。出荷時のフィルムが貼ったまま。角のタブをつまんで引くと、フィルムがくるりと丸まり、細かいパリパリ音とともにはがれて、まっさらな画面が出てくる。次はカメラ、腕時計、車のモニター、電子レンジ、母が「はがすな」と言ったテレビのリモコン、ほかにも。登録不要の小さな気持ちいいおもちゃ。",
   hint_peel: "角のタブをつまんで、はがす",
