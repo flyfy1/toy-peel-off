@@ -1,6 +1,6 @@
 // Peel Off: game loop, input, peel model (stick-slip, zip, fall-back), detach, static cling,
 // object rotation, the 梗 layer, GA events and the dev harness.
-import { type Peel, type V, K_FLAP, chord, clipHalf, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
+import { type Peel, type V, K_FLAP, area, chord, clipHalf, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
 import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rng, rrPath } from './scene'
 import { OBJ, def, isKind } from './objects'
 import { KINDS } from './kit'
@@ -133,12 +133,16 @@ interface Wad {
   shakes: number
 }
 
-/** A piece of brittle film that snapped off: its outline as it was lifted (screen css px), falling. */
+/** A fragment of brittle film that snapped off: outline around its centre c (screen css px), tumbling down. */
 interface Shard {
   pts: V[]
   c: V
+  /** Seconds since the snap (starts slightly negative: the fragments let go one after another). */
   t: number
   spin: number
+  vx: number
+  /** How far it is curled (0..1): a fold line and a lighter lifted side. */
+  curl: number
 }
 
 export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
@@ -185,7 +189,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   let snaps = 0
   let gOff = 0
   let snapX = 0
+  let snapP: V = [-1e4, -1e4]
   let shards: Shard[] = []
+  /** Tiny flakes left stuck on the surface along each snapped edge (film-local polygons). */
+  let flakes: V[][] = []
   let tapT = -1
   let restM = 0
   let marker: V | null = null
@@ -257,6 +264,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     film.stress = true
     film.bloom = 0
     film.cut = 0
+    flakes = []
     snaps = 0
     gOff = 0
     tapT = -1
@@ -440,7 +448,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       const Y = (p[0] - L.A[0]) * -pe.u[1] + (p[1] - L.A[1]) * pe.u[0]
       const c = chord(L.polyDense, L.A, pe.u, film.cut + 1)
       const reach = Math.max(R, snapX - film.cut + L.T)
-      near = !!c && X > film.cut - R && X < film.cut + reach && Y > c[0] - L.T && Y < c[1] + L.T
+      near = (!!c && X > film.cut - R && X < film.cut + reach && Y > c[0] - L.T && Y < c[1] + L.T) || Math.hypot(p[0] - snapP[0], p[1] - snapP[1]) < R
       if (near) {
         // hold the edge from here: no jump, the edge follows the finger from where it took hold
         const P0 = (1 + K_FLAP) * (film.cut + 0.5 * L.T) - K_FLAP * (film.cut + Math.PI * pe.r)
@@ -532,16 +540,57 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     const flat = Math.max(pe.m - Math.PI * pe.r, film.cut + 0.02 * L.F)
     const piece = clipHalf(clipHalf(L.polyDense, L.A, pe.u, flat, true), L.A, pe.u, film.cut, false)
     if (piece.length > 2) {
-      const pts = piece.map((q) => toScreen(liftPoint(q, pe).p))
-      let cx = 0
-      let cy = 0
-      for (const q of pts) {
-        cx += q[0] / pts.length
-        cy += q[1] / pts.length
+      // it shatters: crack the piece along 2 to 4 straight lines into 3 to 5 fragments, each a smaller jagged bit
+      let parts: V[][] = [piece.map((q) => toScreen(liftPoint(q, pe).p))]
+      const n = 3 + Math.floor(Math.random() * 3)
+      const cen = (P: V[]): V => P.reduce<V>((s, q) => [s[0] + q[0] / P.length, s[1] + q[1] / P.length], [0, 0])
+      for (let guard = 0; parts.length < n && guard < 12; guard++) {
+        parts.sort((a, b) => area(b) - area(a))
+        const big = parts.shift()!
+        const c = cen(big)
+        const a = Math.random() * Math.PI
+        const u: V = [Math.cos(a), Math.sin(a)]
+        const off = (Math.random() - 0.5) * 0.3 * Math.sqrt(area(big))
+        const m = c[0] * u[0] + c[1] * u[1] + off
+        const halves = [clipHalf(big, [0, 0], u, m, true), clipHalf(big, [0, 0], u, m, false)].filter((h) => h.length > 2)
+        parts.push(...(halves.length ? halves : [big]))
       }
-      shards.push({ pts, c: [cx, cy], t: 0, spin: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2) })
+      const maxR = 0.16 * L.F
+      for (const P of parts) {
+        const c = cen(P)
+        let R = 0
+        for (const q of P) R = Math.max(R, Math.hypot(q[0] - c[0], q[1] - c[1]))
+        const k = Math.min(0.85, maxR / Math.max(R, 1)) * (0.75 + 0.25 * Math.random())
+        // straight-ish crack edges: each edge gets one slightly kinked midpoint
+        const pts: V[] = []
+        P.forEach((q, i) => {
+          const r = P[(i + 1) % P.length]
+          const e: V = [(q[0] - c[0]) * k, (q[1] - c[1]) * k]
+          const f2: V = [(r[0] - c[0]) * k, (r[1] - c[1]) * k]
+          const j = (Math.random() - 0.5) * 0.12
+          pts.push(e, [(e[0] + f2[0]) / 2 - (f2[1] - e[1]) * j, (e[1] + f2[1]) / 2 + (f2[0] - e[0]) * j])
+        })
+        shards.push({ pts, c, t: -Math.random() * 0.06, spin: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 5), vx: (c[0] - cen(parts.flat())[0]) * 1.5 + (Math.random() - 0.5) * 80, curl: Math.random() })
+      }
+    }
+    // a few tiny flakes stay stuck along the new ragged edge
+    {
+      const c = chord(L.polyDense, L.A, pe.u, pe.m)
+      if (c)
+        for (let i = 0, nf = 3 + Math.floor(Math.random() * 3); i < nf; i++) {
+          const y = c[0] + (0.1 + 0.8 * Math.random()) * (c[1] - c[0])
+          const x = pe.m - 0.004 * L.F - Math.random() * 0.018 * L.F
+          const s = (0.008 + Math.random() * 0.012) * L.F
+          const a = Math.random() * Math.PI
+          flakes.push([0, 1, 2, 3].map((q) => {
+            const b = a + (q * Math.PI) / 2 + (Math.random() - 0.5) * 0.7
+            const rr = s * (0.6 + 0.6 * Math.random())
+            return [L.A[0] + pe.u[0] * x - pe.u[1] * y + Math.cos(b) * rr, L.A[1] + pe.u[1] * x + pe.u[0] * y + Math.sin(b) * rr] as V
+          }))
+        }
     }
     snapX = (ptr[0] - L.A[0]) * pe.u[0] + (ptr[1] - L.A[1]) * pe.u[1]
+    snapP = ptr
     film.cut = pe.m
     snaps++
     pe.m = liftM(pe.u)
@@ -965,7 +1014,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     stepWad(dt)
     if (shards.length) {
       for (const s of shards) s.t += dt
-      shards = shards.filter((s) => s.t < 0.45)
+      shards = shards.filter((s) => s.t < 0.75)
       busy()
     }
     film.flick = flickT >= 0 && T - flickT < 0.08
@@ -1021,6 +1070,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       if (gleamT >= 0 && T - gleamT > 0.12 && T - gleamT < (G ? 0.12 + gd : 0.82)) drawGleam(LL, (T - gleamT - 0.12) / gd, G)
       if (gleamT >= 0 && T - gleamT >= 0.12 && T - gleamT - dtLast < 0.12) sfx.bell()
       drawFilm(ctx, L, BB, film, shadowCv)
+      if (flakes.length) drawFlakes()
     }
     ctx.setTransform(stage.dpr, 0, 0, stage.dpr, ox * stage.dpr, 0)
     if (printAt) def(LL.kind).touch?.(ctx, LL.cx + printAt[0], LL.cy + printAt[1], 0.09 * LL.F)
@@ -1051,25 +1101,71 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
 
   /** A snapped-off piece: flat, aged film, dropping off the bottom of the screen in 450 ms, turning. */
   function drawShard(s: Shard) {
-    const k = s.t / 0.45
-    const dy = (stage.h + 0.2 * stage.h - s.c[1]) * k * k
+    if (s.t < 0) return drawFragment(s, s.c[0], s.c[1], 0, 1)
+    // a little hop, then gravity: off the bottom of the screen in about 0.6 s, tumbling
+    const g = 2.6 * stage.h
+    drawFragment(s, s.c[0] + s.vx * s.t, s.c[1] - 0.12 * stage.h * s.t + 0.5 * g * s.t * s.t, s.spin * s.t, Math.cos(s.t * (6 + 4 * s.curl)))
+  }
+  function drawFragment(s: Shard, x: number, y: number, rot: number, flip: number) {
     ctx.save()
-    ctx.translate(s.c[0] + 0.15 * L.F * k * Math.sign(s.spin), s.c[1] + dy)
-    ctx.rotate(s.spin * s.t)
-    ctx.scale(1 - 0.25 * Math.abs(Math.sin(s.t * 9)), 1)
-    ctx.beginPath()
-    s.pts.forEach((q, i) => (i ? ctx.lineTo(q[0] - s.c[0], q[1] - s.c[1]) : ctx.moveTo(q[0] - s.c[0], q[1] - s.c[1])))
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(15,18,25,0.10)'
+    ctx.translate(x, y)
+    ctx.rotate(rot)
+    // tumbling: foreshortened as it turns over, never quite edge-on
+    ctx.scale(Math.max(0.25, Math.abs(flip)), 1)
+    const P = new Path2D()
+    s.pts.forEach((q, i) => (i ? P.lineTo(q[0], q[1]) : P.moveTo(q[0], q[1])))
+    P.closePath()
+    ctx.fillStyle = 'rgba(15,18,25,0.12)'
     ctx.save()
-    ctx.translate(4, 6)
-    ctx.fill()
+    ctx.translate(3, 4)
+    ctx.fill(P)
     ctx.restore()
-    ctx.fillStyle = 'rgba(236,222,170,0.62)'
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)'
-    ctx.lineWidth = 0.9
+    // yellowed, denser where the back face shows
+    ctx.fillStyle = flip < 0 ? 'rgba(222,200,135,0.78)' : 'rgba(238,222,165,0.7)'
+    ctx.fill(P)
+    ctx.save()
+    ctx.clip(P)
+    // slightly curled: a fold across one side, lighter beyond it
+    const a = s.curl * Math.PI
+    const d = (0.2 + 0.3 * s.curl) * Math.hypot(s.pts[0][0], s.pts[0][1])
+    ctx.translate(Math.cos(a) * d, Math.sin(a) * d)
+    ctx.rotate(a)
+    ctx.fillStyle = 'rgba(255,250,230,0.35)'
+    ctx.fillRect(0, -200, 200, 400)
+    ctx.strokeStyle = 'rgba(120,95,40,0.35)'
+    ctx.lineWidth = 0.8
+    ctx.beginPath()
+    ctx.moveTo(0, -200)
+    ctx.lineTo(0, 200)
     ctx.stroke()
+    ctx.restore()
+    // brittle crack edges: a bright line with a dark one beside it
+    ctx.strokeStyle = 'rgba(90,70,30,0.35)'
+    ctx.lineWidth = 0.7
+    ctx.save()
+    ctx.translate(0.6, 0.7)
+    ctx.stroke(P)
+    ctx.restore()
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'
+    ctx.stroke(P)
+    ctx.restore()
+  }
+  /** The tiny flakes left on the surface along a snapped edge (film-local). */
+  function drawFlakes() {
+    const M = filmMatrix(L)
+    const d = stage.dpr
+    ctx.save()
+    ctx.setTransform(M[0] * d, M[1] * d, M[2] * d, M[3] * d, M[4] * d, M[5] * d)
+    for (const f of flakes) {
+      ctx.beginPath()
+      f.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])))
+      ctx.closePath()
+      ctx.fillStyle = 'rgba(225,205,140,0.75)'
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+      ctx.lineWidth = 0.6
+      ctx.stroke()
+    }
     ctx.restore()
   }
 
@@ -1242,7 +1338,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       // the cabinet just after its first snap: the piece falling, the ragged edge taken up again
       setFraction(0.34)
       snap(0.34)
-      shards[0] && (shards[0].t = 0.1)
+      shards.forEach((s, i) => (s.t = 0.1 + 0.03 * i))
       pe.m = film.cut + 0.16 * L.F
       pe.r = 0.04 * L.F
     } else if (name === 'sliver') {
