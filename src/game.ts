@@ -142,6 +142,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   let failed = false
   /** Kinds there are: the built ones, or the first three if the newer objects could not load. */
   const total = () => (failed ? LAP1.length : BUILT.length)
+  /** Kinds peeled so far among those there are (LAP1 and BUILT are the first KINDS, so a low-bit mask). */
+  const seen = () => popc(mask & ((1 << total()) - 1))
   let mask = Number(lsGet('peel.kinds')) || 0
   const seenVisit = new Set<Kind>()
   const afterShown = new Set<Kind>()
@@ -534,9 +536,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     mask |= 1 << KINDS.indexOf(L.kind)
     lsSet('peel.kinds', String(mask))
     seenVisit.add(L.kind)
-    ev.onCount(today, L.kind === 'remote', popc(mask), total())
+    ev.onCount(today, L.kind === 'remote', seen(), total())
     if (L.kind === 'remote') remoteDone = 1
-    ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone, it: KINDS.indexOf(L.kind), d: popc(mask), left: leftFor() })
+    ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone, it: KINDS.indexOf(L.kind), d: seen(), left: leftFor() })
     void loadMore()
     const ch = def(L.kind).chat
     if (ch?.done) {
@@ -630,12 +632,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       (m) => {
         m.install()
         ev.onObjects?.()
-        if (started) ev.onCount(today, false, popc(mask), total())
+        if (started) ev.onCount(today, false, seen(), total())
         return true
       },
       () => {
         failed = true
-        if (started) ev.onCount(today, false, popc(mask), total())
+        if (started) ev.onCount(today, false, seen(), total())
         return false
       },
     ))
@@ -1047,7 +1049,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   function begin() {
     relayout()
     started = true
-    ev.onCount(today, false, popc(mask), total())
+    ev.onCount(today, false, seen(), total())
   }
   // a link naming a newer object: load them first (the closed box lid shows meanwhile); if that fails, the remote
   if (OBJ[kind]) begin()

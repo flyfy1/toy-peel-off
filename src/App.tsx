@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { type ReactNode, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { MoreMenu, pillClass } from './components/MoreMenu'
 import { applyMeta, t, tx } from './i18n'
 import { startAnalytics, track } from './analytics'
@@ -7,7 +7,11 @@ import { landing, peakEvery, stats, trackLanding } from './share'
 import { Tag } from './components/Tag'
 import { type GameApi, startGame } from './game'
 
-const Picker = lazy(() => import('./Picker'))
+// a failed chunk leaves the counter as a plain pill rather than taking the page down
+type PickerProps = { api: GameApi; onClose: () => void }
+const Picker = lazy(
+  (): Promise<{ default: (p: PickerProps) => ReactNode }> => import('./Picker').catch(() => ({ default: () => null })),
+)
 
 type Line = { text: string; mode: 'line' | 'mum'; id: number; from?: string }
 
