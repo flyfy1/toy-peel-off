@@ -1,0 +1,68 @@
+# Peel Off
+
+> A new phone in its box, factory film still on. Take the corner tab and pull: the film curls away with a fine crackle and the screen comes out clean. Then a camera, a watch, a car screen, a microwave, the TV remote your mum said to leave alone, and more. A tiny satisfying toy, no sign-up.
+
+Peel Off (撕膜 (zh-CN), Quita el Plástico (es), Pelez-Moi Ça (fr), ペリペリ保護フィルム (ja)) is a free browser toy at https://peel.integ.life/ by Integ Life. It opens straight into play: no sign-up, no download, no ads, no tutorial. It works with a mouse or a touchscreen on phones, tablets and computers.
+
+## How to play
+
+1. Take the yellow tab at the corner of the film with a finger or the mouse and drag it across the screen. The film curls back over itself with a fine crackle of tiny ticks; the direction you pull steers the fold.
+2. Pull most of the way and it zips off the rest by itself. Let go too early and it falls back down, trapping a few new air bubbles; take the tab and pull again.
+3. The film comes off as a crumpled wad that clings to your finger with static. Shake it off with a quick back-and-forth, or tap the tray beside the object.
+4. Then the next thing arrives. There are ten in all: a phone, a steel panel, a TV remote in its plastic (Mum has opinions), a camera, a new watch, a car screen, a microwave, a fridge door, a laptop and a kitchen cabinet. Tap the counter at the top to pick one.
+
+## Facts
+
+- URL: https://peel.integ.life/
+- Price: free
+- Platforms: any modern web browser (desktop and mobile)
+- Languages: English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese), picked from the browser language (default English)
+- Sound: synthesised live with the Web Audio API; vibration on Android
+- Made by: Integ Life (https://integ.life/), first published 2026-11-25
+
+## FAQ
+
+**Can I peel protective film online?**
+Yes. Peel Off at peel.integ.life is a free browser toy. Take the tab at the corner of the film with your finger or mouse and drag it across. The film curls away with sound and, on Android, vibration. Nothing to install and no account.
+
+**What can I peel?**
+Ten things: a new phone, the blue film on a stainless-steel panel, a TV remote kept in its plastic, the camera on the back of a phone, a new watch, a car's centre screen, a microwave panel, a fridge door, a laptop lid and a kitchen cabinet door. They come round in turn, and you can pick one by tapping the counter. Each film behaves a little differently.
+
+**Why did the film on the microwave leave a strip behind?**
+Because that edge is tucked under the trim, as on a real one. It stretches, tears, and the strip under the trim stays. That is the joke.
+
+**Why does the film go back down when I let go?**
+Because that is what a half-peeled film does. If you let go before about two thirds of it is off, it falls back and traps a few air bubbles. Take the tab and pull again; nothing is lost.
+
+**The film is stuck to my finger. How do I get rid of it?**
+That is static. Shake it off with a quick back-and-forth, or tap the tray beside the object. Sometimes it takes two tries.
+
+**Is Peel Off free?**
+Yes. It is free, with no sign-up, no download and no ads. It runs in any modern browser on phones, tablets and computers.
+
+**Does it have sound and vibration?**
+Yes. The crackle is synthesised live in the browser with the Web Audio API, one tiny tick each time the adhesive lets go, rising in pitch as the film comes off; there are no audio files to load. On Android phones the pull is also a fine buzz of vibration; iPhone browsers do not support web vibration.
+
+**Which languages does it support?**
+English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese). The language is picked automatically from your browser settings; any other language falls back to English.
+
+**Who made it?**
+Integ Life (integ.life). Peel Off is one of twelve small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That, Give It a Twirl, Tablecloth Trick, Smooth as Silk. More games are at games.integ.life.
+
+**Is any personal data collected?**
+No account and no personal data. At most, anonymous usage statistics (page views and play counts) are collected.
+
+## Related
+
+- [Charge Burst](https://charge.integ.life/): Hold to annoy a pufferfish until it puffs up and blows its spines off.
+- [Void Harvest](https://void.integ.life/): Your cursor is a black hole: swallow the socks, receipts, client emails and Monday. Sometimes it gives one sock back.
+- [Glass Smash](https://smash.integ.life/): Smash a pane of glass with the word you hate written on it.
+- [Chain Pop](https://pop.integ.life/): A sheet of parcel bubble wrap that never runs out. One bubble refuses to pop.
+- [Knock on Wood](https://knock.integ.life/): Tap a wooden fish. Merit +1.
+- [Lap Cat](https://purr.integ.life/): Pet a soft, purring cat on your screen. Mind the belly.
+- [Squishy Bun](https://squish.integ.life/): Squeeze a soft mochi bun. It slowly forgives you.
+- [Scratch That](https://scratch.integ.life/): Scratch the silver off a card. Win a nap.
+- [Give It a Twirl](https://twirl.integ.life/): A new skirt on a dress form. Swipe to spin it and watch the hem fly out flat.
+- [Tablecloth Trick](https://yoink.integ.life/): Whip a silk tablecloth out from under Mum's bowls. Fast, or everything goes with it.
+- [Smooth as Silk](https://silk.integ.life/): A silk curtain at an open window. Drag it, let go, watch it fall back.
+- [Integ Games](https://games.integ.life/): more browser games
