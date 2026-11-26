@@ -116,6 +116,9 @@ export function liftPoint(p: V, pe: Peel): { p: V; h: number; s: number } {
 /** Fold distance that puts the grab corner (s = m) under a pointer at distance P along u. */
 export const mStar = (P: number, r: number) => (P + K_FLAP * Math.PI * r) / (1 + K_FLAP)
 
+/** Round films (spec peel-more 2): the film starts at the arc's apex, m0 along u from A, so the apex goes under the finger. */
+export const mStar0 = (P: number, r: number, m0: number) => (P + K_FLAP * (m0 + Math.PI * r)) / (1 + K_FLAP)
+
 /** Peeled fraction of the film polygon at fold distance m. */
 export function peeledFraction(poly: Poly, filmArea: number, A: V, u: V, m: number): number {
   if (m <= 0) return 0

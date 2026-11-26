@@ -133,8 +133,13 @@ class Sfx {
     if (rustle > 0 && this.rusLfo) this.rusLfo.frequency.setTargetAtTime(25 + Math.random() * 25, t, 0.05)
   }
 
-  thwip(gain = 1) {
+  thwip(gain = 1, high = 0) {
     const t = this.now
+    if (high) {
+      // the microwave tearing free: a second, higher burst 40 ms after the first
+      this.burst(t + 0.04, 0.05, 1500 * high, 2, 0.2 * gain, 'bandpass', 6000 * high)
+      return
+    }
     this.burst(t, 0.06, 1500, 2, 0.2 * gain, 'bandpass', 6000)
     this.sine(t, 140, 0.04, 0.12 * gain)
   }

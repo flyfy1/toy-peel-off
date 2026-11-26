@@ -1,8 +1,9 @@
 // Peel Off: game loop, input, peel model (stick-slip, zip, fall-back), detach, static cling,
 // object rotation, the 梗 layer, GA events and the dev harness.
-import { type Peel, type V, chord, dir, farX, liftPoint, mForFraction, mStar, peeledFraction } from './geom'
-import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rrPath } from './scene'
-import { def, isKind } from './objects'
+import { type Peel, type V, chord, dir, farX, liftPoint, mForFraction, mStar, mStar0, peeledFraction } from './geom'
+import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, filmMatrix, layoutFor, rng, rrPath } from './scene'
+import { OBJ, def, isKind } from './objects'
+import { KINDS } from './kit'
 import { type FilmState, drawFilm, drawWad, tabPoly } from './render'
 import { haptic, setupCanvas } from './engine/juice'
 import { sfx } from './sfx'
@@ -11,8 +12,10 @@ import { t, tx } from './i18n'
 
 export interface GameEvents {
   onFirst: () => void
-  /** Films peeled today, and whether the pill shows the remote's "Mum informed: no" variant. */
-  onCount: (n: number, mum: boolean) => void
+  /** Films peeled today, whether the pill shows the remote's "Mum informed: no" variant, kinds peeled on this device of those there are. */
+  onCount: (n: number, mum: boolean, d: number, total: number) => void
+  /** The newer objects have loaded (the picker and the tags can show them). */
+  onObjects?: () => void
   /** A deadpan line under the object, or a chat bubble from Mum. */
   onLine: (text: string, mode: 'line' | 'mum', from?: string) => void
   /** A film came fully off: numbers for the share card (today, one-pulls this visit, the remote peeled). */
@@ -21,6 +24,12 @@ export interface GameEvents {
 
 export interface GameApi {
   dispose: () => void
+  /** The objects there are, the kinds peeled on this device (bitmask over KINDS), the current one. */
+  info: () => { avail: Kind[]; mask: number; cur: Kind }
+  /** The picker: the current object slides out, this one slides in. */
+  pick: (k: Kind) => void
+  /** Loads the newer objects (the picker asks when it opens). */
+  load: () => Promise<boolean>
 }
 
 const DEV = import.meta.env.DEV
@@ -51,7 +60,15 @@ const DEG = Math.PI / 180
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v)
 const easeInCubic = (x: number) => x * x * x
 const easeOutCubic = (x: number) => 1 - (1 - x) ** 3
-const ORDER: Kind[] = ['phone', 'steel', 'remote']
+/** The first lap is today's rotation; then a bag of the newer objects, then bags of everything. */
+const LAP1: Kind[] = ['phone', 'steel', 'remote']
+/** The objects built so far (fridge, laptop and cabinet are in the spec for later). */
+const BUILT = KINDS.slice(0, 7) as readonly Kind[]
+const popc = (x: number) => {
+  let n = 0
+  for (; x; x >>>= 1) n += x & 1
+  return n
+}
 
 /** Allowed pull directions: within 55 degrees of the film diagonal and at least 10 degrees inside the corner's quadrant. */
 function uRange(L: Layout) {
@@ -116,8 +133,24 @@ interface Wad {
 
 export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   const q0 = Q.get('obj')
-  let kind: Kind = isKind(q0) ? q0 : 'phone'
-  let orderIx = ORDER.indexOf(kind)
+  let kind: Kind = isKind(q0) && BUILT.includes(q0) ? q0 : 'phone'
+  let queue: Kind[] = LAP1.includes(kind) ? LAP1.slice(LAP1.indexOf(kind) + 1) : []
+  let bags = 0
+  let bagRnd: (() => number) | null = null
+  let forced: Kind | null = null
+  let loading: Promise<boolean> | null = null
+  let failed = false
+  /** Kinds there are: the built ones, or the first three if the newer objects could not load. */
+  const total = () => (failed ? LAP1.length : BUILT.length)
+  let mask = Number(lsGet('peel.kinds')) || 0
+  const seenVisit = new Set<Kind>()
+  const afterShown = new Set<Kind>()
+  let stall: { t: number; m: number; pulse: number } | null = null
+  let stallDone = false
+  let afterAt = -1
+  let printAt: V | null = null
+  let printDone = false
+  let flickT = -1
   let L!: Layout
   let B!: Bakes
   let objL!: Layout // the object's own (first-film) layout; the second layer only swaps L
@@ -131,6 +164,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     tabLift: 0,
     bloom: 0,
     stress: true,
+    torn: false,
+    flick: false,
   }
   let restM = 0
   let marker: V | null = null
@@ -209,6 +244,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     mumWarned = false
     fall = null
     zip = null
+    stall = null
+    stallDone = false
+    film.torn = false
+    afterAt = -1
+    printAt = null
+    printDone = false
   }
 
   function relayout(resize = false) {
@@ -298,11 +339,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   function targetM(pe: Peel) {
     const P = (ptr[0] - L.A[0]) * pe.u[0] + (ptr[1] - L.A[1]) * pe.u[1]
-    return Math.max(liftM(pe.u), mStar(P, pe.r))
+    return Math.max(liftM(pe.u), L.round ? mStar0(P, pe.r, L.m0) : mStar(P, pe.r))
   }
   const busy = (s = 0.6) => (busyUntil = Math.max(busyUntil, T + s))
 
   const onDown = (e: PointerEvent) => {
+    if (!started) return
     sfx.unlock()
     if (first) {
       first = false
@@ -324,6 +366,25 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     }
     const p = toFilm(e.clientX, e.clientY)
     if (!film.on) {
+      const D = def(L.kind)
+      // the extras on a clean object: the car takes one fingerprint, the microwave's sliver flicks
+      if (D.touch && !printDone && gleamT >= 0 && T - gleamT > 0.82 && onObject(e.clientX, e.clientY)) {
+        printDone = true
+        printAt = [e.clientX - objL.cx, e.clientY - objL.cy]
+        ev.onLine(tx('peel_car_after'), 'line')
+        ga('extra_tap', { what: 'fingerprint' })
+        nextAt = Math.max(nextAt, T + 1.6)
+        draw()
+        return
+      }
+      if (L.sx0 && p[0] > -12 && p[0] < L.sx0 + 12 && p[1] > -6 && p[1] < L.fh + 6) {
+        flickT = T
+        ev.onLine(tx('peel_micro_after'), 'line')
+        ga('extra_tap', { what: 'sliver' })
+        nextAt = Math.max(nextAt, T + 1.6)
+        busy()
+        return
+      }
       if (nextAt >= 0 && layer2At < 0) goNext()
       return
     }
@@ -357,6 +418,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     draw()
   }
   const onMove = (e: PointerEvent) => {
+    if (!started) return
     if (e.pointerType === 'mouse' || ptrDown) {
       ptrS = [e.clientX, e.clientY]
       moves.push({ t: performance.now() / 1000, x: e.clientX, y: e.clientY })
@@ -374,7 +436,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     grabbed = false
     pid = -1
     busy(1)
-    if (zip) return
+    if (zip || stall) return
     const f = frac()
     if (f >= 0.7) startZip()
     else fallBack(f)
@@ -388,6 +450,24 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   function startZip() {
     const pe = film.peel
     zip = { t: 0, m0: pe.m, m1: farX(L.poly40, L.A, pe.u) + 1, acc: 0 }
+  }
+
+  /** The microwave: the last corner is tucked under the trim on two sides, so the front stops there. */
+  function checkStall() {
+    const S = def(L.kind).stall
+    if (!S || stallDone || stall || frac() < S.at) return
+    stall = { t: 0, m: film.peel.m, pulse: T }
+    zip = null
+    ev.onLine(tx('peel_micro_stall'), 'line')
+    ga('stall', { item: item(), ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000) })
+  }
+
+  /** Film-local y where the fold line meets the sliver's edge (the trim side), or -1. */
+  function trimY(): number {
+    const pe = film.peel
+    if (!L.sx0 || Math.abs(pe.u[1]) < 1e-6) return -1
+    const y = L.A[1] + (pe.m - (L.sx0 - L.A[0]) * pe.u[0]) / pe.u[1]
+    return y >= 0 && y <= L.fh ? y : -1
   }
 
   function fallBack(f: number) {
@@ -428,7 +508,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     }
   }
 
-  function detach() {
+  function detach(tear = false) {
     const pe = film.peel
     const Qs = toScreen(liftPoint(L.A, pe).p)
     const c = toScreen(liftPoint([L.fw / 2, L.fh / 2], pe).p)
@@ -439,7 +519,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     detachT = T
     gleamT = T
     sfx.thwip()
-    haptic(18)
+    if (tear) sfx.thwip(0.7, 2)
+    haptic(tear ? 22 : 18)
     const wasLayer2 = L.layer2
     const it = item()
     sessionN++
@@ -450,9 +531,13 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     lsSet('peel.day', JSON.stringify({ k: dayKey(), n: today }))
     lsSet('peel.total', String(lifetime))
     ga('peel_done', { n: sessionN, item: it, ms: Math.round((T - (filmT0 < 0 ? T : filmT0)) * 1000), one_pull: relaidN === 0 ? 1 : 0, relaid: relaidN })
-    ev.onCount(today, L.kind === 'remote')
+    mask |= 1 << KINDS.indexOf(L.kind)
+    lsSet('peel.kinds', String(mask))
+    seenVisit.add(L.kind)
+    ev.onCount(today, L.kind === 'remote', popc(mask), total())
     if (L.kind === 'remote') remoteDone = 1
-    ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone })
+    ev.onPeel?.(sessionN, { n: today, k: onePulls, remote: remoteDone, it: KINDS.indexOf(L.kind), d: popc(mask), left: leftFor() })
+    void loadMore()
     const ch = def(L.kind).chat
     if (ch?.done) {
       ev.onLine(tx(ch.done), 'mum', tx(ch.who))
@@ -471,7 +556,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       if (phones === 2 || (phones > 2 && Math.random() < 1 / 3)) layer2At = T + 0.82
     }
     if (wasLayer2) ev.onLine(t('peel_layer_last'), 'line')
-    nextAt = layer2At >= 0 ? -1 : T + 1.4
+    const D = def(L.kind)
+    if (D.afterLine && !(D.afterOnce && afterShown.has(L.kind))) afterAt = T + 0.82
+    nextAt = layer2At >= 0 ? -1 : T + (D.afterLine || D.touch ? 2.6 : 1.4)
     busy(2)
   }
 
@@ -500,10 +587,58 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
 
   function finishBakeNext() {
-    orderIx = (orderIx + 1) % ORDER.length
-    kind = ORDER[orderIx]
+    kind = forced ?? nextKind()
+    forced = null
     relayout()
     film.on = true
+  }
+
+  // ---------- rotation: the first lap, then shuffled bags; never the same object twice in a row ----------
+  const avail = () => KINDS.filter((k) => OBJ[k])
+  function refill() {
+    const all = avail()
+    if (all.length <= LAP1.length) {
+      queue = LAP1.slice() // the newer objects are not here (yet): today's cycle
+      return
+    }
+    const pool = bags++ === 0 ? all.filter((k) => !LAP1.includes(k)) : all
+    bagRnd ??= rng((Math.random() * 4294967296) >>> 0)
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(bagRnd() * (i + 1))
+      ;[pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+    if (pool[0] === kind && pool.length > 1) [pool[0], pool[1]] = [pool[1], pool[0]]
+    queue = pool
+  }
+  function nextKind(): Kind {
+    if (!queue.length) refill()
+    let k = queue.shift()!
+    if (k === kind) {
+      if (!queue.length) refill()
+      queue.push(k)
+      k = queue.shift()!
+    }
+    return k
+  }
+  /** The object left for a recipient: the next one coming that this device has not peeled (never phone or steel), else the remote. */
+  function leftFor(): number {
+    const c = [...queue, ...avail()].find((k) => k !== 'phone' && k !== 'steel' && !((mask >> KINDS.indexOf(k)) & 1))
+    return KINDS.indexOf(c ?? 'remote')
+  }
+  function loadMore(): Promise<boolean> {
+    return (loading ??= import('./objects2').then(
+      (m) => {
+        m.install()
+        ev.onObjects?.()
+        if (started) ev.onCount(today, false, popc(mask), total())
+        return true
+      },
+      () => {
+        failed = true
+        if (started) ev.onCount(today, false, popc(mask), total())
+        return false
+      },
+    ))
   }
 
   // ---------- the wad ----------
@@ -601,7 +736,27 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       nextIdle = T + 5
       tabAnim = { t: 0, dur: 0.3 }
     }
-    if (film.on && grabbed && !zip) {
+    if (stall) {
+      // the stall: the flap stretches from the tucked corner, the stretch rises 700 to 1,400 Hz, then it tears free
+      const S = def(L.kind).stall!
+      stall.t += dt
+      const k = clamp(stall.t / (S.ms / 1000), 0, 1)
+      pe.m = stall.m
+      pe.stretch = 1 + (S.stretch - 1) * Math.min(1, k * 2.5)
+      stretch = 1
+      pitch = (700 * k) / 300
+      if (T >= stall.pulse) {
+        haptic(6)
+        stall.pulse = T + 0.06
+      }
+      if (k >= 1) {
+        stall = null
+        stallDone = true
+        film.torn = true
+        detach(true)
+      }
+      busy()
+    } else if (film.on && grabbed && !zip) {
       const k = 1 - Math.exp(-dt / 0.08)
       const ux = pe.u[0] + (uTarget[0] - pe.u[0]) * k
       const uy = pe.u[1] + (uTarget[1] - pe.u[1]) * k
@@ -632,6 +787,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       if (steps) {
         const f = frac()
         for (let i = 0; i < steps; i++) tickAt(start + (i / steps) * dt, f)
+        // the microwave: each step along the trim tears the film there (a higher, softer tick)
+        if (L.sx0 && trimY() >= 0) {
+          const v = variant()
+          for (let i = 0; i < steps; i++) sfx.peelTick(start + ((i + 0.5) / steps) * dt, f, { ...v, pitch: 2 * v.pitch, gain: 0.5 * v.gain }, 1)
+        }
         film.frontSeed = (film.frontSeed * 1103515245 + 12345) >>> 0
         if (def(L.kind).bloom) film.bloom = 1
         popBubbles()
@@ -652,11 +812,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       }
       // zip: far enough and past the edge, or most of it off
       const d = Math.hypot(Math.max(0, -ptr[0], ptr[0] - L.fw), Math.max(0, -ptr[1], ptr[1] - L.fh))
-      if ((f >= 0.7 && d > 0.3 * L.T) || f >= 0.8) startZip()
+      checkStall()
+      if (!stall && ((f >= 0.7 && d > 0.3 * L.T) || f >= (def(L.kind).zip?.[0] ?? 0.8))) startZip()
       busy()
     } else if (zip) {
       zip.t += dt
-      const k = clamp(zip.t / 0.16, 0, 1)
+      const k = clamp(zip.t / (def(L.kind).zip?.[1] ?? 0.16), 0, 1)
       const prev = pe.m
       pe.m = zip.m0 + (zip.m1 - zip.m0) * k * k
       pe.stretch = 1
@@ -672,7 +833,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       popBubbles()
       hiss = 1
       if (grabbed) aim(ptr)
-      if (k >= 1) detach()
+      checkStall()
+      if (!stall && k >= 1) detach()
       busy()
     } else if (fall) {
       fall.t += dt
@@ -689,6 +851,13 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       frontSpeed *= 0.8
     }
     stepWad(dt)
+    film.flick = flickT >= 0 && T - flickT < 0.08
+    if (afterAt >= 0 && T >= afterAt) {
+      afterAt = -1
+      const D = def(L.kind)
+      afterShown.add(L.kind)
+      if (D.afterLine) ev.onLine(tx(D.afterLine(shotDate ?? new Date())), 'line')
+    }
     sfx.beds(hiss, stretch, pitch, sfxRustle)
     if (layer2At >= 0 && T >= layer2At) startLayer2()
     if (layer2Timeout >= 0 && T >= layer2Timeout && film.on && L.layer2) {
@@ -734,6 +903,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
       if (gleamT >= 0 && T - gleamT >= 0.12 && T - gleamT - dtLast < 0.12) sfx.bell()
       drawFilm(ctx, L, BB, film, shadowCv)
     }
+    ctx.setTransform(stage.dpr, 0, 0, stage.dpr, ox * stage.dpr, 0)
+    if (printAt) def(LL.kind).touch?.(ctx, LL.cx + printAt[0], LL.cy + printAt[1], 0.09 * LL.F)
+    def(LL.kind).over?.(ctx, LL)
   }
   let dtLast = 1 / 60
 
@@ -832,6 +1004,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   let last = performance.now()
   let raf = 0
   function frame(dt: number) {
+    if (!started) {
+      if (stage.w) drawLid(0)
+      return
+    }
     dtLast = dt
     step(dt)
     draw()
@@ -850,7 +1026,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   const sendSession = () => {
     if (sessionN > sentN) {
       sentN = sessionN
-      ga('session_peels', { n: sessionN, one_pulls: onePulls })
+      ga('session_peels', { n: sessionN, one_pulls: onePulls, kinds: seenVisit.size })
     }
   }
   const onVis = () => {
@@ -868,9 +1044,18 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   }
   window.addEventListener('pagehide', onHide)
 
-  relayout()
-  started = true
-  ev.onCount(today, false)
+  function begin() {
+    relayout()
+    started = true
+    ev.onCount(today, false, popc(mask), total())
+  }
+  // a link naming a newer object: load them first (the closed box lid shows meanwhile); if that fails, the remote
+  if (OBJ[kind]) begin()
+  else
+    void loadMore().then((ok) => {
+      if (!ok) kind = 'remote'
+      begin()
+    })
 
   // ---------- dev: ?shot=<name> sets m, u and r directly and freezes ----------
   function setFraction(f: number, offDeg = 0, rr = 0.035) {
@@ -881,11 +1066,14 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     pe.r = rr * L.F * def(L.kind).curl
     pe.m = f >= 1 ? farX(L.poly40, L.A, pe.u) : mForFraction(L.poly40, L.filmArea, L.A, pe.u, f)
   }
-  function shot(name: string) {
+  function shot(name: string): void | Promise<void> {
     shotDate = new Date(2026, 10, 25, 10, 24)
-    const want: Kind = name.startsWith('steel') ? 'steel' : name.startsWith('remote') ? 'remote' : (Q.get('obj') as Kind) || 'phone'
+    const dash = name.indexOf('-')
+    const pre = name.slice(0, dash)
+    const want: Kind = dash > 0 && isKind(pre) ? pre : name.startsWith('steel') ? 'steel' : name.startsWith('remote') ? 'remote' : isKind(q0) ? q0 : 'phone'
+    if (!OBJ[want]) return loadMore().then(() => shot(name))
+    if (dash > 0 && isKind(pre)) name = name.slice(dash + 1)
     kind = want
-    orderIx = ORDER.indexOf(kind)
     relayout()
     film.stress = name !== 'remote0'
     wad = null
@@ -898,9 +1086,16 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     } else if (name === 'og') {
       // the 1200 x 630 card: the phone sits right of the title
       objL.cx = stage.w * 0.72
-      B = bake(objL, SEED + orderIx)
+      B = bake(objL, SEED + def(kind).ix)
       setupFilm(objL, B.bubbles)
       setFraction(0.4, -30)
+    } else if (name === 'stall') {
+      // the microwave at its stall: 90% peeled, the flap stretched from the tucked corner
+      setFraction(0.9)
+      pe.stretch = 1.25
+    } else if (name === 'sliver') {
+      film.on = false
+      film.torn = true
     } else if (name === 'p70') setFraction(0.7, -30)
     else if (name === 'p70b') setFraction(0.7, -30, 0.065)
     else if (name === 'pull') setFraction(Number(Q.get('f')) || 0)
@@ -980,11 +1175,38 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
         draw()
       },
       next: goNext,
-      ready: true,
+      get ready() {
+        return started
+      },
     }
   }
 
+  function pick(k: Kind) {
+    if (!OBJ[k] || trans || !started || grabbed || (k === kind && film.on)) return
+    ga('pick', { item: k, seen: (mask >> KINDS.indexOf(k)) & 1 })
+    forced = k
+    if (wad && !wad.off) wadOff('auto')
+    goNext()
+  }
+  if (DEV)
+    Object.assign((window as unknown as { __toy: object }).__toy, {
+      pick,
+      load: loadMore,
+      info: () => ({ mask, queue, kind }),
+      // peel-more 3.8: peeled fraction with the finger on the far corner's apex (diagonal pull, r = 0.05 F x curl)
+      reach: () => {
+        const u = dir(uRange(L).diag)
+        const P = farX(L.poly40, L.A, u)
+        const r = 0.05 * L.F * def(L.kind).curl
+        const m = L.round ? mStar0(P, r, L.m0) : mStar(P, r)
+        return { kind: L.kind, fw: L.fw, fh: L.fh, F: L.F, T: L.T, frac: peeledFraction(L.poly40, L.filmArea, L.A, u, m) }
+      },
+    })
+
   return {
+    info: () => ({ avail: avail(), mask, cur: kind }),
+    pick,
+    load: loadMore,
     dispose() {
       cancelAnimationFrame(raf)
       disposeCanvas()

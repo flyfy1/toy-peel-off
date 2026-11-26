@@ -2,8 +2,8 @@
 // The text every toy shares (names for the More menu, Share, About) lives in i18n.ts.
 
 const en = {
-  peel_tag: "Someone saved you the film on the remote",
-  desc_peel: "A new phone in its box, factory film still on. Take the corner tab and pull: the film curls away with a fine crackle and the screen comes out clean. Then a steel panel, then the TV remote your mum said to leave alone. A tiny satisfying toy, no sign-up.",
+  peel_tag_remote: "Someone saved you the film on the remote",
+  desc_peel: "A new phone in its box, factory film still on. Take the corner tab and pull: the film curls away with a fine crackle and the screen comes out clean. Then a camera, a watch, a car screen, a microwave, the TV remote your mum said to leave alone, and more. A tiny satisfying toy, no sign-up.",
   hint_peel: "Pull the corner tab",
   share_peel: "Peel the factory film off a brand-new phone:",
   share_peel_stat: "I peeled {n} protective films today. Mum has not noticed.",
@@ -18,13 +18,17 @@ const en = {
   peel_mum_warn: "Leave that on! It keeps it clean.",
   peel_mum_good: "Good.",
   peel_mum_done: "…",
+  peel_kinds: "{d} of {t} kinds",
+  peel_name_phone: "the phone",
+  peel_name_steel: "the steel panel",
+  peel_name_remote: "the remote",
   peel_remove: "REMOVE BEFORE USE",
   peel_steel_labels: ["Rice", "Steam", "Timer", "Up", "Down", "On/Off"],
 }
 
 const zhCN: typeof en = {
-  peel_tag: "有人把遥控器的膜留给你撕",
-  desc_peel: "盒子里一台新手机，出厂膜还贴着。捏住角上的小标签往外撕：膜卷起来，细细地沙沙响，底下的屏幕干干净净。接着是一块不锈钢面板，然后是妈妈不让撕的电视遥控器。打开即玩的解压小玩具。",
+  peel_tag_remote: "有人把遥控器的膜留给你撕",
+  desc_peel: "盒子里一台新手机，出厂膜还贴着。捏住角上的小标签往外撕：膜卷起来，细细地沙沙响，底下的屏幕干干净净。接着是摄像头、手表、车机、微波炉、妈妈不让撕的电视遥控器，还有别的。打开即玩的解压小玩具。",
   hint_peel: "捏住角上的小标签，撕",
   share_peel: "给一台新手机撕膜：",
   share_peel_stat: "今天撕了 {n} 张膜。我妈还不知道。",
@@ -39,13 +43,17 @@ const zhCN: typeof en = {
   peel_mum_warn: "别撕！撕了容易脏。",
   peel_mum_good: "这还差不多。",
   peel_mum_done: "……",
+  peel_kinds: "{d}/{t} 种",
+  peel_name_phone: "手机膜",
+  peel_name_steel: "不锈钢面板",
+  peel_name_remote: "遥控器",
   peel_remove: "使用前请撕去保护膜",
   peel_steel_labels: ["精煮", "蒸煮", "预约", "加", "减", "开关"],
 }
 
 const es: typeof en = {
-  peel_tag: "Alguien te ha guardado la lámina del mando",
-  desc_peel: "Un móvil nuevo en su caja, con el plástico de fábrica todavía puesto. Coge la pestaña de la esquina y tira: el plástico se enrolla con un crujido fino y la pantalla sale limpia. Luego un panel de acero y luego el mando de la tele que tu madre dijo que no tocaras. Un juguete pequeño y satisfactorio, sin registro.",
+  peel_tag_remote: "Alguien te ha guardado la lámina del mando",
+  desc_peel: "Un móvil nuevo en su caja, con el plástico de fábrica todavía puesto. Coge la pestaña de la esquina y tira: el plástico se enrolla con un crujido fino y la pantalla sale limpia. Luego una cámara, un reloj, la pantalla de un coche, un microondas, el mando de la tele que tu madre dijo que no tocaras, y más. Un juguete pequeño y satisfactorio, sin registro.",
   hint_peel: "Tira de la pestaña de la esquina",
   share_peel: "Quítale el plástico a un móvil recién estrenado:",
   share_peel_stat: "Hoy he quitado {n} plásticos protectores. Mamá aún no lo sabe.",
@@ -60,13 +68,17 @@ const es: typeof en = {
   peel_mum_warn: "¡No lo quites! Así no se ensucia.",
   peel_mum_good: "Así me gusta.",
   peel_mum_done: "…",
+  peel_kinds: "{d} de {t} tipos",
+  peel_name_phone: "el móvil",
+  peel_name_steel: "el panel de acero",
+  peel_name_remote: "el mando",
   peel_remove: "RETIRAR ANTES DE USAR",
   peel_steel_labels: ["Arroz", "Vapor", "Hora", "Más", "Menos", "On/Off"],
 }
 
 const fr: typeof en = {
-  peel_tag: "Quelqu’un vous a gardé le film de la télécommande",
-  desc_peel: "Un téléphone neuf dans sa boîte, le film d'usine encore dessus. Prenez la languette du coin et tirez : le film s'enroule avec un fin crépitement et l'écran apparaît, net. Puis un panneau inox, puis la télécommande que votre mère vous a dit de laisser emballée. Un petit jouet satisfaisant, sans inscription.",
+  peel_tag_remote: "Quelqu’un vous a gardé le film de la télécommande",
+  desc_peel: "Un téléphone neuf dans sa boîte, le film d'usine encore dessus. Prenez la languette du coin et tirez : le film s'enroule avec un fin crépitement et l'écran apparaît, net. Puis un appareil photo, une montre, un écran de voiture, un micro-ondes, la télécommande que votre mère vous a dit de laisser emballée, et d'autres. Un petit jouet satisfaisant, sans inscription.",
   hint_peel: "Tirez la languette du coin",
   share_peel: "Retirez le film d'un téléphone tout neuf :",
   share_peel_stat: "J'ai retiré {n} films de protection aujourd'hui. Maman n'a rien vu.",
@@ -81,13 +93,17 @@ const fr: typeof en = {
   peel_mum_warn: "Ne l'enlève pas ! Ça le protège.",
   peel_mum_good: "C'est mieux.",
   peel_mum_done: "…",
+  peel_kinds: "{d} sortes sur {t}",
+  peel_name_phone: "le téléphone",
+  peel_name_steel: "le panneau inox",
+  peel_name_remote: "la télécommande",
   peel_remove: "À RETIRER AVANT USAGE",
   peel_steel_labels: ["Riz", "Vapeur", "Minuterie", "Plus", "Moins", "Marche"],
 }
 
 const ja: typeof en = {
-  peel_tag: "リモコンのフィルムをあなたに残してくれた人がいます",
-  desc_peel: "箱の中に新品のスマホ。出荷時のフィルムが貼ったまま。角のタブをつまんで引くと、フィルムがくるりと丸まり、細かいパリパリ音とともにはがれて、まっさらな画面が出てくる。次はステンレスのパネル、その次は母が「はがすな」と言ったテレビのリモコン。登録不要の小さな気持ちいいおもちゃ。",
+  peel_tag_remote: "リモコンのフィルムをあなたに残してくれた人がいます",
+  desc_peel: "箱の中に新品のスマホ。出荷時のフィルムが貼ったまま。角のタブをつまんで引くと、フィルムがくるりと丸まり、細かいパリパリ音とともにはがれて、まっさらな画面が出てくる。次はカメラ、腕時計、車のモニター、電子レンジ、母が「はがすな」と言ったテレビのリモコン、ほかにも。登録不要の小さな気持ちいいおもちゃ。",
   hint_peel: "角のタブをつまんで、はがす",
   share_peel: "新品スマホの保護フィルムをはがそう：",
   share_peel_stat: "今日は保護フィルムを {n} 枚はがした。母にはまだバレていない。",
@@ -102,6 +118,10 @@ const ja: typeof en = {
   peel_mum_warn: "はがさないで！汚れるでしょ。",
   peel_mum_good: "それでいいの。",
   peel_mum_done: "……",
+  peel_kinds: "{d}/{t} 種類",
+  peel_name_phone: "スマホ",
+  peel_name_steel: "ステンレスのパネル",
+  peel_name_remote: "リモコン",
   peel_remove: "ご使用前にはがしてください",
   peel_steel_labels: ["炊飯", "蒸し", "予約", "上", "下", "入/切"],
 }

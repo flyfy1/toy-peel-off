@@ -3,6 +3,8 @@
 // the first peel) and register themselves with `register`.
 import { type Bubble, type Kind, type Layout, KINDS, drawNoise, objectPath, rrPath } from './kit'
 import { list, locale, t } from './i18n'
+import type { Bakes } from './scene'
+import type { FilmState } from './render'
 
 export type Corner = 'br' | 'tr' | 'bl' | 'tl'
 /** yellow: printed pull tab; white-arrow: white tab, blue arrow; dogear: no tab, a lifted corner; clear: clear tab with a red dot. */
@@ -87,8 +89,17 @@ export interface ObjDef {
   over?(ctx: CanvasRenderingContext2D, L: Layout): void
   /** A chat bubble from someone with opinions about the film: sender, at 15%, on fall-back, when off; GA event name. */
   chat?: { who: string; warn: string; good: string; done?: string; ga: string }
-  /** The detached film stays a small stiff disc instead of a wad (the watch). */
-  disc?: boolean
+  /** Draws the detached film instead of the crumpled wad (the watch's stiff disc); size is the wad's. */
+  wad?: (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number, alpha: number) => void
+  /** Draws the film left under a trim (the microwave's sliver): where the fold has passed, or all of it. */
+  sliver?: (ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st: FilmState, all: boolean) => void
+  /** Draws the one fingerprint (the car), css px. */
+  touch?: (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => void
+  /** A stiff film pops off early: the zip starts at this peeled fraction (default 0.8) and takes this long (default 0.16 s). */
+  zip?: [number, number]
+  /** A line when the gleam ends (the key, by the clock); `afterOnce`: first time per visit only. */
+  afterLine?: (d: Date) => string
+  afterOnce?: boolean
 }
 
 export const OBJ: Partial<Record<Kind, ObjDef>> = {}

@@ -60,3 +60,5 @@ body.about-open #about {
 .peel-mum { animation: peel-in 3400ms ease-out forwards; }
 @keyframes peel-fade { 0% { opacity: 0; transform: translateY(4px); } 12% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 .peel-line { animation: peel-fade 2600ms ease-out forwards; }
+@keyframes peel-tray { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: translateY(0); } }
+.peel-tray { animation: peel-tray 160ms ease-out; }

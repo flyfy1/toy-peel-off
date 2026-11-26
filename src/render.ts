@@ -29,6 +29,9 @@ export interface FilmState {
   bloom: number
   /** Stress marks and front shimmer show only while the front is being worked. */
   stress: boolean
+  /** The microwave: the last corner tore off with the sliver (after the stall), and the sliver is flicking. */
+  torn: boolean
+  flick: boolean
 }
 
 const P = (A: V, u: V, X: number, Y: number): V => [A[0] + u[0] * X - u[1] * Y, A[1] + u[1] * X + u[0] * Y]
@@ -68,7 +71,7 @@ function pathPoly(ctx: CanvasRenderingContext2D, poly: Poly) {
 }
 
 /** Half-plane x < m (less) or x > m along u, as a big quad in film-local coordinates. */
-function halfPlane(ctx: CanvasRenderingContext2D, A: V, u: V, m: number, less: boolean) {
+export function halfPlane(ctx: CanvasRenderingContext2D, A: V, u: V, m: number, less: boolean) {
   const B = 1e4
   const x0 = less ? m - B : m
   const x1 = less ? m : m + B
@@ -161,7 +164,10 @@ function flapOutline(L: Layout, pe: Peel): { poly: Poly; free: boolean[]; height
 }
 
 export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st: FilmState, shadowCv: HTMLCanvasElement) {
-  if (!st.on) return
+  if (!st.on) {
+    def(L.kind).sliver?.(ctx, L, B, st, true)
+    return
+  }
   const pe = st.peel
   const { A, u, m, r } = pe
   const dpr = L.dpr
@@ -212,6 +218,10 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
     ctx.stroke()
   }
   ctx.restore()
+  if (L.sx0 && peeled) {
+    def(L.kind).sliver?.(ctx, L, B, st, false)
+    setFilm(ctx)
+  }
 
   const curl = peeled ? curlFootprint(L, pe) : null
   const flap = peeled ? flapOutline(L, pe) : null
@@ -259,6 +269,18 @@ export function drawFilm(ctx: CanvasRenderingContext2D, L: Layout, B: Bakes, st:
       ctx.strokeStyle = 'rgba(255,255,255,0.75)'
       ctx.lineWidth = 0.9
       ctx.stroke()
+      if (L.sx0 && Math.abs(u[1]) > 1e-6) {
+        // a bright nick where the front tears along the trim
+        const y = A[1] + (m - (L.sx0 - A[0]) * u[0]) / u[1]
+        if (y > 0 && y < L.fh) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+          ctx.lineWidth = 1.6
+          ctx.beginPath()
+          ctx.moveTo(L.sx0 - 0.5, y - 1.5)
+          ctx.lineTo(L.sx0 + 1, y + 1.5)
+          ctx.stroke()
+        }
+      }
       // stress marks: adhesive legs letting go
       const n = !st.stress ? 0 : Math.round((20 + rnd() * 10) * Math.min(1, (c[1] - c[0]) / L.F))
       ctx.strokeStyle = 'rgba(255,255,255,0.35)'
@@ -573,6 +595,14 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
   const out = L.out
   const ax = cx + out[0] * 0.12 * L.T
   const ay = cy + out[1] * 0.12 * L.T
+  if (style === 'clear' && !L.layer2) {
+    ctx.fillStyle = '#E5342B'
+    ctx.beginPath()
+    ctx.arc(cx, cy, 0.12 * L.T, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    return
+  }
   ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : steel ? '#1F5FA8' : 'rgba(110,70,0,0.75)'
   ctx.lineWidth = Math.max(1, 0.07 * L.T)
   ctx.lineCap = 'round'
@@ -592,6 +622,8 @@ function drawTab(ctx: CanvasRenderingContext2D, L: Layout, pts: Poly, flipped: b
 
 /** Crumpled clear film (spec 3.7): a soft irregular wad, translucent, with soft folds and a few highlights. css px, screen space. */
 export function drawWad(ctx: CanvasRenderingContext2D, L: Layout, x: number, y: number, size: number, rot: number, seed: number, alpha = 1) {
+  const own = def(L.kind).wad
+  if (own) return own(ctx, x, y, size, rot, alpha)
   const rnd = rng(seed)
   const n = 9
   const pts: V[] = []
