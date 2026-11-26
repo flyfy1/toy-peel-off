@@ -5,7 +5,7 @@ import { type Bakes, type Bubble, type Kind, type Layout, bake, bakeFilm, drawPh
 import { type FilmState, drawFilm, drawWad, tabPoly } from './render'
 import { haptic, setupCanvas } from './engine/juice'
 import { sfx } from './sfx'
-import { track } from './analytics'
+import { act, track } from './analytics'
 import { t } from './i18n'
 
 export interface GameEvents {
@@ -337,6 +337,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     // your hand is needed for the next film: the old wad finally lets go
     if (wad && !wad.off) wadOff('auto')
     grabbed = true
+    act('peel_start')
     pid = e.pointerId
     canvas.setPointerCapture?.(e.pointerId)
     ptr = p
@@ -389,6 +390,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   function fallBack(f: number) {
     fall = { t: 0, m0: film.peel.m }
     relaidN++
+    act('relaid')
     ga('relaid', { item: item(), pct: clamp(Math.floor(f * 100), 0, 69) })
     // 2 to 4 new trapped bubbles and one diagonal wrinkle in the area that was peeled and re-laid
     const pe = film.peel
@@ -437,6 +439,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
     const wasLayer2 = L.layer2
     const it = item()
     sessionN++
+    act('peel_done')
     today++
     lifetime++
     if (relaidN === 0) onePulls++
@@ -502,6 +505,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents): GameApi {
   function wadOff(how: 'shake' | 'tap' | 'auto') {
     if (!wad || wad.off) return
     wad.off = { t: 0, x0: wad.x, y0: wad.y, how }
+    if (how !== 'auto') act(how === 'shake' ? 'cling_shake' : 'cling_tap')
     ga('cling_off', { how, ms: Math.round((T - wad.since) * 1000), stuck_again: wad.stuckAgain ? 1 : 0 })
     if (how !== 'auto') {
       sfx.thwip(0.5)
