@@ -47,7 +47,7 @@ Yes. The crackle is synthesised live in the browser with the Web Audio API, one 
 English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese). The language is picked automatically from your browser settings; any other language falls back to English.
 
 **Who made it?**
-Integ Life (integ.life). Peel Off is one of nine small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That. More games are at games.integ.life.
+Integ Life (integ.life). Peel Off is one of ten small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That, Give It a Twirl. More games are at games.integ.life.
 
 **Is any personal data collected?**
 No account and no personal data. At most, anonymous usage statistics (page views and play counts) are collected.
@@ -62,4 +62,5 @@ No account and no personal data. At most, anonymous usage statistics (page views
 - [Lap Cat](https://purr.integ.life/): Pet a soft, purring cat on your screen. Mind the belly.
 - [Squishy Bun](https://squish.integ.life/): Squeeze a soft mochi bun. It slowly forgives you.
 - [Scratch That](https://scratch.integ.life/): Scratch the silver off a card. Win a nap.
+- [Give It a Twirl](https://twirl.integ.life/): A new skirt on a dress form. Swipe to spin it and watch the hem fly out flat.
 - [Integ Games](https://games.integ.life/): more browser games
